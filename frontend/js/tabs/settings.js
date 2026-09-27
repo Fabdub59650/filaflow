@@ -3,12 +3,7 @@ async function renderSettings() {
   document.getElementById('topbar-actions').innerHTML = '';
   document.getElementById('content').innerHTML = '<div style="color:var(--text3);padding:20px 0">Chargement…</div>';
 
-  const [settings, spoolmanStatus] = await Promise.all([
-    API.get('/settings'),
-    API.get('/spoolman/status').catch(() => ({ connected: false }))
-  ]);
-
-  const spoolmanEnabled = settings.spoolman_enabled === 'true';
+  const settings = await API.get('/settings');
   const currentTheme    = settings.theme || 'blue';
 
   if (!window._settingsTab) window._settingsTab = 'interface';
@@ -17,8 +12,7 @@ async function renderSettings() {
   const tabDefs = [
     { id:'interface',    label:'🎨️ Interface'    },
     { id:'donnees',      label:'💾 Données'      },
-    { id:'integrations', label:'🔌 Intégrations'  },
-    { id:'imprimantes',  label:'🖨️ Imprimantes'  },
+    { id:'integrations', label:'⚖️ Balance'  },
     { id:'systeme',      label:'⚙️ Système'    },
   ];
 
@@ -50,7 +44,7 @@ async function renderSettings() {
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Nom de l'application</label>
-          <input id="set-app-name" value="${settings.app_name||'PrintFlow'}">
+          <input id="set-app-name" value="${settings.app_name||'FilaFlow'}">
         </div>
         <div class="form-group">
           <label class="form-label">Thème de couleurs</label>
@@ -125,47 +119,8 @@ async function renderSettings() {
         </label>
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
           <div>
-            <div style="font-size:13px">Gestion des projets</div>
-            <div style="font-size:11px;color:var(--text3)">Affiche l'onglet Projets, les champs Projet/Pièce dans les impressions et les widgets du dashboard</div>
-          </div>
-          <div onclick="toggleSetting('projects_enabled', this)" id="toggle-projects-enabled"
-               data-enabled="${settings.projects_enabled!=='false'?'1':'0'}"
-               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                      background:${settings.projects_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                        top:2px;transition:left 0.2s;left:${settings.projects_enabled!=='false'?'19px':'2px'}"></div>
-          </div>
-        </label>
-        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-          <div>
-            <div style="font-size:13px">Gestion des devis</div>
-            <div style="font-size:11px;color:var(--text3)">Affiche l'onglet Devis pour créer et suivre les devis clients</div>
-          </div>
-          <div onclick="toggleSetting('quotes_enabled', this)" id="toggle-quotes-enabled"
-               data-enabled="${settings.quotes_enabled!=='false'?'1':'0'}"
-               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                      background:${settings.quotes_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                        top:2px;transition:left 0.2s;left:${settings.quotes_enabled!=='false'?'19px':'2px'}"></div>
-          </div>
-        </label>
-        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-          <div>
-            <div style="font-size:13px">Galerie photos</div>
-            <div style="font-size:11px;color:var(--text3)">Affiche l'onglet Galerie avec toutes les photos d'impressions</div>
-          </div>
-          <div onclick="toggleSetting('gallery_enabled', this)" id="toggle-gallery-enabled"
-               data-enabled="${settings.gallery_enabled!=='false'?'1':'0'}"
-               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                      background:${settings.gallery_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                        top:2px;transition:left 0.2s;left:${settings.gallery_enabled!=='false'?'19px':'2px'}"></div>
-          </div>
-        </label>
-        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-          <div>
             <div style="font-size:13px">Alertes stock filament</div>
-            <div style="font-size:11px;color:var(--text3)">Affiche un avertissement sur le dashboard quand une bobine est presque vide</div>
+            <div style="font-size:11px;color:var(--text3)">Affiche un bandeau en haut de la liste des filaments quand des bobines sont presque vides</div>
           </div>
           <div onclick="toggleSetting('stock_alert_enabled', this)" id="toggle-stock-alert"
                data-enabled="${settings.stock_alert_enabled!=='false'?'1':'0'}"
@@ -181,29 +136,6 @@ async function renderSettings() {
                  value="${settings.stock_alert_threshold||20}"
                  style="width:70px" onchange="saveSettings()">
           <span style="font-size:13px;color:var(--text3)">% restant</span>
-        </div>
-      </div>
-
-      <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
-        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-          <div>
-            <div style="font-size:13px">Alertes maintenance</div>
-            <div style="font-size:11px;color:var(--text3)">Affiche un avertissement sur le dashboard quand une échéance de maintenance approche</div>
-          </div>
-          <div onclick="toggleSetting('maintenance_alert_enabled', this)" id="toggle-maintenance-alert"
-               data-enabled="${settings.maintenance_alert_enabled!=='false'?'1':'0'}"
-               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                      background:${settings.maintenance_alert_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                        top:2px;transition:left 0.2s;left:${settings.maintenance_alert_enabled!=='false'?'19px':'2px'}"></div>
-          </div>
-        </label>
-        <div id="maintenance-alert-days-wrap" style="display:${settings.maintenance_alert_enabled!=='false'?'flex':'none'};align-items:center;gap:10px;padding-left:4px;margin-top:10px">
-          <label style="font-size:13px;color:var(--text2)">Délai d'alerte</label>
-          <input id="set-maintenance-days" type="number" min="7" max="90" step="7"
-                 value="${settings.maintenance_alert_days||30}"
-                 style="width:70px" onchange="saveSettings()">
-          <span style="font-size:13px;color:var(--text3)">jours avant l'échéance</span>
         </div>
       </div>
 
@@ -270,7 +202,7 @@ async function renderSettings() {
     <div class="card">
       <div class="card-header"><span class="card-title">Application mobile (PWA)</span></div>
       <div style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        PrintFlow peut être installé comme application sur votre mobile ou tablette pour un accès rapide sans navigateur.
+        FilaFlow peut être installé comme application sur votre mobile ou tablette pour un accès rapide sans navigateur.
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" onclick="installPWA()" id="pwa-install-btn-settings">
@@ -290,45 +222,6 @@ async function renderSettings() {
 
     case 'donnees':
       el.innerHTML = `
-
-    <!-- ── Bibliothèque ───────────────────────────── -->
-    <div class="card">
-      <div class="card-header"><span class="card-title">Bibliothèque de fichiers</span></div>
-      <div class="form-grid">
-        <div class="form-group full">
-          <label class="form-label">Chemin de stockage</label>
-          <input id="set-library-path" value="${settings.library_path||'/opt/printflow/library'}"
-                 placeholder="/opt/printflow/library">
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">
-            Dossier sur le Raspberry Pi où sont stockés les STL, 3MF, etc.
-          </div>
-        </div>
-      </div>
-      <div id="lib-stats-display" style="margin-top:10px;font-size:13px;color:var(--text2)">
-        Chargement des statistiques…
-      </div>
-      <div style="margin-top:12px">
-        <button class="btn btn-primary" onclick="saveSettings()">Enregistrer</button>
-      </div>
-    </div>
-
-    <!-- ── Photos impressions ─────────────────────── -->
-    <div class="card">
-      <div class="card-header"><span class="card-title">Photos des impressions</span></div>
-      <div class="form-grid">
-        <div class="form-group full">
-          <label class="form-label">Chemin de stockage</label>
-          <input id="set-prints-photo-path" value="${settings.prints_photo_path||'/opt/printflow/prints'}"
-                 placeholder="/opt/printflow/prints">
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">
-            Dossier sur le Raspberry Pi où sont stockées les photos des impressions.
-          </div>
-        </div>
-      </div>
-      <div style="margin-top:12px">
-        <button class="btn btn-primary" onclick="saveSettings()">Enregistrer</button>
-      </div>
-    </div>
 
     <!-- ── Sauvegarde ──────────────────────────────── -->
     <div class="card">
@@ -371,8 +264,8 @@ async function renderSettings() {
           <div class="form-group full" id="backup-local-config"
                style="display:${(settings.backup_destination||'local')==='local'?'block':'none'}">
             <label class="form-label">Dossier de sauvegarde</label>
-            <input id="set-backup-path" value="${settings.backup_path||'/opt/printflow/backups'}"
-                   placeholder="/opt/printflow/backups">
+            <input id="set-backup-path" value="${settings.backup_path||'/opt/filaflow/backups'}"
+                   placeholder="/opt/filaflow/backups">
           </div>
 
           <!-- Config NAS -->
@@ -397,7 +290,7 @@ async function renderSettings() {
               </div>
               <div class="form-group full">
                 <label class="form-label">Dossier cible sur le NAS</label>
-                <input id="set-nas-folder" value="${settings.backup_nas_folder||'/printflow'}" placeholder="/printflow">
+                <input id="set-nas-folder" value="${settings.backup_nas_folder||'/filaflow'}" placeholder="/filaflow">
               </div>
             </div>
             <button class="btn btn-sm" onclick="testNasConnection()" style="margin-top:8px">
@@ -425,37 +318,6 @@ async function renderSettings() {
             </div>
           </div>
 
-          <!-- Options -->
-          <div class="form-group full">
-            <label class="form-label">Options</label>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-                <div onclick="toggleBackupLibrary(this)" id="backup-library-toggle"
-                     data-enabled="${settings.backup_library_enabled!=='false'?'1':'0'}"
-                     style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                            background:${settings.backup_library_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-                  <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                              top:2px;transition:left 0.2s;left:${settings.backup_library_enabled!=='false'?'19px':'2px'}"></div>
-                </div>
-                <span style="font-size:13px;color:var(--text2)">
-                  Inclure bibliothèque (STL, 3MF, photos)
-                </span>
-              </label>
-              <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-                <div onclick="toggleBackupEmail(this)" id="backup-email-toggle"
-                     data-enabled="${settings.backup_report_email!=='false'?'1':'0'}"
-                     style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                            background:${settings.backup_report_email!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-                  <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                              top:2px;transition:left 0.2s;left:${settings.backup_report_email!=='false'?'19px':'2px'}"></div>
-                </div>
-                <span style="font-size:13px;color:var(--text2)">
-                  Rapport par email après chaque sauvegarde
-                  <span style="font-size:11px;color:var(--text3);display:block">Utilise la configuration SMTP du rapport hebdomadaire</span>
-                </span>
-              </label>
-            </div>
-          </div>
         </div>
 
         <!-- Dernière sauvegarde -->
@@ -512,237 +374,19 @@ async function renderSettings() {
       <div id="restore-status" style="margin-top:8px;font-size:13px"></div>
     </div>
 
-    <!-- ── Vider des données ──────────────────────── -->
-    <div id="purge-section-placeholder"></div>
-    <!-- ── Purge par date ────────────────────────── -->
-    <div id="purge-date-placeholder"></div>`;
+`;
 
       loadBackupStatus();
-      API.get('/library/stats').then(function(stats) {
-        const el2 = document.getElementById('lib-stats-display');
-        if (!el2) return;
-        const fmt = function(b) { return b < 1048576 ? (b/1024).toFixed(0)+' Ko' : (b/1048576).toFixed(1)+' Mo'; };
-        el2.innerHTML = '<div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">' +
-          '<span><strong>' + (stats.total_files || stats.file_count || 0) + '</strong> fichiers</span>' +
-          '<span><strong>' + (stats.total_objects || 0) + '</strong> objets</span>' +
-          '<span>' + fmt(stats.total_size || 0) + ' utilisés</span>' +
-          '<span style="font-size:12px;color:var(--text3)">' + (stats.library_path || '') + '</span>' +
-          '</div>';
-      }).catch(function() {});
-      renderPurgeSection();
-      renderPurgeDateSection();
       break;
 
     case 'integrations':
       el.innerHTML = `
-
-    <!-- ── PixelIt ──────────────────────────────────── -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">🟥 PixelIt — Matrice LED</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-sm" onclick="testPixelIt()">🔴 Tester</button>
-          <button class="btn btn-sm btn-primary" onclick="savePixelItConfig()">Enregistrer</button>
-        </div>
-      </div>
-
-      <!-- Connexion -->
-      <div class="form-grid" style="margin-bottom:12px">
-        <div class="form-group">
-          <label class="form-label">Activer PixelIt</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <div onclick="this.dataset.v=this.dataset.v==='1'?'0':'1';this.style.background=this.dataset.v==='1'?'var(--accent)':'var(--bg3)';document.getElementById('pi-enabled').value=this.dataset.v"
-                 id="pi-enabled-toggle" data-v="0"
-                 style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;background:var(--bg3)">
-              <div style="width:18px;height:18px;border-radius:50%;background:#fff;margin:2px;transition:transform 0.2s"></div>
-            </div>
-            <input type="hidden" id="pi-enabled" value="0">
-          </label>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Adresse IP</label>
-          <input id="pi-ip" placeholder="192.168.1.xxx" style="font-family:monospace">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Luminosité (%)</label>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="range" id="pi-brightness" min="0" max="100" value="60"
-                   oninput="document.getElementById('pi-brightness-val').textContent=this.value+'%'"
-                   style="flex:1">
-            <span id="pi-brightness-val" style="font-size:12px;color:var(--text3);width:35px">60%</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Couleur horloge</label>
-          <input type="color" id="pi-clock-color" value="#1E90FF" style="height:36px;width:100%;padding:2px 4px">
-        </div>
-      </div>
-
-      <!-- Rotation -->
-      <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <span style="font-weight:500;font-size:13px">Écrans en rotation</span>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-            <input type="checkbox" id="pi-rotation" checked style="width:15px;height:15px;flex-shrink:0">
-            <span>Activer la rotation</span>
-          </label>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px" id="pi-screens">
-          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--bg3);border-radius:var(--radius)">
-            <input type="checkbox" id="pi-screen-clock" checked style="width:15px;height:15px;flex-shrink:0">
-            <span style="flex:1;font-size:13px">🕐 Horloge</span>
-            <span style="font-size:12px;color:var(--text3)">durée</span>
-            <input type="number" id="pi-dur-clock" value="10" min="3" max="60" style="width:55px;font-size:12px">
-            <span style="font-size:12px;color:var(--text3)">s</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--bg3);border-radius:var(--radius)">
-            <input type="checkbox" id="pi-screen-stats" checked style="width:15px;height:15px;flex-shrink:0">
-            <span style="flex:1;font-size:13px">📊 Stats du jour</span>
-            <span style="font-size:12px;color:var(--text3)">durée</span>
-            <input type="number" id="pi-dur-stats" value="8" min="3" max="60" style="width:55px;font-size:12px">
-            <span style="font-size:12px;color:var(--text3)">s</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--bg3);border-radius:var(--radius)">
-            <input type="checkbox" id="pi-screen-weather" style="width:15px;height:15px;flex-shrink:0">
-            <span style="flex:1;font-size:13px">🌡 Météo</span>
-            <span style="font-size:12px;color:var(--text3)">durée</span>
-            <input type="number" id="pi-dur-weather" value="8" min="3" max="60" style="width:55px;font-size:12px">
-            <span style="font-size:12px;color:var(--text3)">s</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Météo -->
-      <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
-        <span style="font-weight:500;font-size:13px">🌡 Météo (Open-Meteo, gratuit)</span>
-        <div class="form-grid" style="margin-top:8px">
-          <div class="form-group">
-            <label class="form-label">Ville</label>
-            <div style="display:flex;gap:6px">
-              <input id="pi-weather-city" placeholder="ex: Lille" style="flex:1">
-              <button class="btn btn-sm" onclick="searchWeatherCity()">🔍</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Latitude</label>
-            <input id="pi-weather-lat" placeholder="50.6292">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Longitude</label>
-            <input id="pi-weather-lon" placeholder="3.0573">
-          </div>
-        </div>
-      </div>
-
-      <!-- Notifications -->
-      <div style="border-top:1px solid var(--border);padding-top:12px">
-        <span style="font-weight:500;font-size:13px">Notifications prioritaires</span>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="pi-notif-done" checked style="width:15px;height:15px;flex-shrink:0">
-            <span>✅ Impression terminée</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="pi-notif-failed" checked style="width:15px;height:15px;flex-shrink:0">
-            <span>❌ Impression échouée</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="pi-notif-progress" checked style="width:15px;height:15px;flex-shrink:0">
-            <span>🖨 Progression (toutes les 30s via Moonraker)</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="pi-notif-stock" style="width:15px;height:15px;flex-shrink:0">
-            <span>⚠ Stock filament critique</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Spoolman ───────────────────────────────── -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Intégration Spoolman</span>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <span style="color:var(--text2)">Activer</span>
-          <div onclick="toggleSpoolman()" id="spoolman-toggle"
-               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                      background:${spoolmanEnabled?'var(--accent)':'var(--border2)'};position:relative">
-            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                        top:2px;transition:left 0.2s;left:${spoolmanEnabled?'19px':'2px'}"></div>
-          </div>
-        </label>
-      </div>
-
-      <div id="spoolman-config" style="display:${spoolmanEnabled?'block':'none'}">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-          <span class="badge ${spoolmanStatus.connected?'badge-success':'badge-danger'}">
-            ${spoolmanStatus.connected?'● Connecté':'● Déconnecté'}
-          </span>
-          ${spoolmanStatus.connected?`<span style="font-size:12px;color:var(--text3)">v${spoolmanStatus.version||'?'} · ${spoolmanStatus.url}</span>`:''}
-        </div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label class="form-label">URL Spoolman</label>
-            <input id="set-spoolman-url" value="${settings.spoolman_url||'http://localhost:7912'}" placeholder="http://localhost:7912">
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-primary" onclick="saveSettings()">Enregistrer</button>
-          <button class="btn" onclick="testSpoolman()">Tester la connexion</button>
-          <button class="btn btn-success" onclick="syncSpoolmanSettings()">↻ Synchroniser les bobines</button>
-        </div>
-      </div>
-
-      <div id="spoolman-disabled-msg" style="display:${spoolmanEnabled?'none':'block'};
-           font-size:13px;color:var(--text3);padding:8px 0">
-        Activez l'intégration Spoolman pour synchroniser vos bobines automatiquement.
-      </div>
-    </div>
-
-    <!-- ── Tapo P100 ─────────────────────────────── -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">🔌 Tapo P100 — Prises connectées</span>
-        <div onclick="toggleTapoEnabled(this)" id="toggle-tapo-enabled"
-             data-enabled="${settings.tapo_enabled==='true'?'1':'0'}"
-             style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                    background:${settings.tapo_enabled==='true'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-          <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                      top:2px;transition:left 0.2s;left:${settings.tapo_enabled==='true'?'19px':'2px'}"></div>
-        </div>
-      </div>
-      <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--warning)">
-        ⚠ <strong>Compatibilité firmware 1.4.0+</strong> — Le protocole KLAP local est restreint aux apps officielles Tapo.
-        Le contrôle via cloud fonctionne uniquement si les prises sont en ligne sur les serveurs TP-Link.
-        Cette limitation sera levée lors d'une mise à jour de la librairie tp-link-tapo-connect.
-      </div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        Identifiants du compte Tapo — utilisés pour l'authentification cloud.
-        Le mot de passe est chiffré AES-256 en base de données.
-      </p>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">Email du compte Tapo</label>
-          <input id="set-tapo-email" type="email" value="${settings.tapo_email||''}" placeholder="votre@email.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Mot de passe Tapo</label>
-          <input id="set-tapo-password" type="password" placeholder="${settings.tapo_password ? '••••••••' : 'mot de passe Tapo'}">
-          <div style="font-size:11px;color:var(--text3);margin-top:3px">Laisser vide pour ne pas modifier.</div>
-        </div>
-      </div>
-      <div style="margin-top:10px">
-        <button class="btn btn-primary" onclick="saveTapoCredentials()">Enregistrer les identifiants</button>
-        <div id="tapo-creds-result" style="margin-top:8px;font-size:13px"></div>
-      </div>
-    </div>
-
     <!-- ── TigerTag Scale ───────────────────────── -->
     <div class="card">
       <div class="card-header"><span class="card-title">TigerTag Scale</span></div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
         Balance connectée ESP32 avec lecteur RFID. Quand une bobine est posée et stabilisée,
-        la pesée est créée automatiquement dans PrintFlow.
+        la pesée est créée automatiquement dans FilaFlow.
       </p>
       <div style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;font-size:12px">
         <div style="font-weight:500;margin-bottom:6px">URL du webhook à configurer sur l'ESP32 :</div>
@@ -752,284 +396,18 @@ async function renderSettings() {
       <div id="tigertag-recent" style="margin-top:8px"></div>
     </div>
 
-    <!-- ── API & Intégrations ───────────────────── -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">API &amp; Intégrations</span>
-      </div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        PrintFlow expose une API REST complète. Utilisez-la pour intégrer avec
-        Home Assistant, Jeedom, ou tout outil tiers.
-      </p>
-      <div style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">URL de base</div>
-        <code style="font-size:13px;color:var(--accent)" id="api-base-url"></code>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="/api-docs" target="_blank" class="btn btn-primary" style="text-decoration:none">
-          📖 Documentation interactive (Swagger)
-        </a>
-        <a href="/openapi.yaml" target="_blank" class="btn btn-sm" style="text-decoration:none">
-          ↓ openapi.yaml
-        </a>
-      </div>
-      <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
-        <div style="font-size:12px;font-weight:500;margin-bottom:8px">Exemple Home Assistant</div>
-        <pre style="font-size:11px;background:var(--bg3);padding:10px;border-radius:var(--radius);overflow-x:auto;color:var(--text2)">sensor:
-  - platform: rest
-    name: "Filaments stock faible"
-    resource: <span id="ha-example-url"></span>/api/stats/alerts
-    value_template: "{{ value_json | length }}"
-    unit_of_measurement: bobines
-    scan_interval: 3600</pre>
-      </div>
-    </div>
-
-    <!-- ── Notifications Telegram ───────────────────── -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Notifications Telegram</span>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <span style="color:var(--text2)">Activer</span>
-          <div onclick="toggleTelegram()" id="telegram-toggle"
-               data-enabled="${settings.telegram_enabled==='true'?'1':'0'}"
-               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                      background:${settings.telegram_enabled==='true'?'var(--accent)':'var(--border2)'};position:relative">
-            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                        top:2px;left:${settings.telegram_enabled==='true'?'19px':'2px'};transition:left 0.2s"></div>
-          </div>
-        </label>
-      </div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        Recevez des alertes sur Telegram quand une impression se termine, échoue,
-        ou quand un stock de filament est faible.
-        Créez un bot via <b>@BotFather</b> sur Telegram pour obtenir votre token.
-      </p>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">Token du bot *</label>
-          <input id="set-tg-token" type="password" value="${settings.telegram_token?'••••••••':''}"
-                 placeholder="7234567890:AAHxyz..." autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Chat ID *</label>
-          <input id="set-tg-chatid" value="${settings.telegram_chat_id||''}"
-                 placeholder="123456789">
-          <div style="font-size:11px;color:var(--text3);margin-top:3px">
-            Envoyez un message à votre bot puis ouvrez<br>
-            <code>https://api.telegram.org/bot[TOKEN]/getUpdates</code>
-          </div>
-        </div>
-
-        <div class="form-group full">
-          <label class="form-label">Types de notifications</label>
-          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-            ${[
-              ['telegram_notif_done',   settings.telegram_notif_done,   'Impression terminée (Moonraker)'],
-              ['telegram_notif_failed', settings.telegram_notif_failed, 'Impression échouée (Moonraker)'],
-              ['telegram_notif_stock',  settings.telegram_notif_stock,  'Stock filament faible'],
-              ['telegram_notif_maint',  settings.telegram_notif_maint,  'Maintenance à prévoir'],
-              ['telegram_notif_daily',  settings.telegram_notif_daily,  'Résumé quotidien (20h)'],
-            ].map(function(item) {
-              const key     = item[0];
-              const val     = item[1];
-              const label   = item[2];
-              const enabled = val !== 'false';
-              return '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
-                '<div onclick="toggleTgNotif(this)" id="toggle-' + key + '" data-key="' + key + '" data-enabled="' + (enabled?'1':'0') + '"' +
-                ' style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;flex-shrink:0;' +
-                'background:' + (enabled?'var(--accent)':'var(--border2)') + ';position:relative">' +
-                '<div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;' +
-                'left:' + (enabled?'19px':'2px') + ';transition:left 0.2s"></div></div>' +
-                '<span style="font-size:13px;color:var(--text2)">' + label + '</span>' +
-              '</label>';
-            }).join('')}
-          </div>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-primary" onclick="saveTelegramSettings()">Enregistrer</button>
-        <button class="btn" onclick="testTelegram()">Envoyer un message test</button>
-        <span id="tg-test-result" style="font-size:12px"></span>
-      </div>
-    </div>
-
-    <!-- ── Rapport hebdomadaire ──────────────────── -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">📧 Rapport hebdomadaire</span>
-        <div onclick="toggleSetting('report_enabled', this)" id="toggle-report-enabled"
-             data-enabled="${settings.report_enabled==='true'?'1':'0'}"
-             style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
-                    background:${settings.report_enabled==='true'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
-          <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
-                      top:2px;transition:left 0.2s;left:${settings.report_enabled==='true'?'19px':'2px'}"></div>
-        </div>
-      </div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        Recevez chaque semaine un résumé de l'activité, de la consommation et des alertes par email.
-      </p>
-      <div id="report-config" style="display:${settings.report_enabled==='true'?'block':'none'}">
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Email destinataire *</label>
-            <input id="set-report-email" type="email" value="${settings.report_email||''}" placeholder="vous@exemple.com">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Jour d'envoi</label>
-            <select id="set-report-day">
-              ${[['1','Lundi'],['2','Mardi'],['3','Mercredi'],['4','Jeudi'],['5','Vendredi'],['6','Samedi'],['7','Dimanche']]
-                .map(([v,l]) => '<option value="' + v + '"' + (settings.report_day===v?' selected':'') + '>' + l + '</option>').join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Heure d'envoi</label>
-            <select id="set-report-hour">
-              ${Array.from({length:24},(_,i)=>'<option value="'+i+'"'+(settings.report_hour==i?' selected':'')+'>'+String(i).padStart(2,'0')+'h00</option>').join('')}
-            </select>
-          </div>
-        </div>
-        <div style="border-top:0.5px solid var(--border2);padding-top:14px;margin-top:6px">
-          <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:10px">Configuration SMTP</div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Serveur SMTP *</label>
-              <input id="set-smtp-host" value="${settings.smtp_host||''}" placeholder="smtp.gmail.com">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Port</label>
-              <input id="set-smtp-port" type="number" value="${settings.smtp_port||'587'}" placeholder="587">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Utilisateur SMTP *</label>
-              <input id="set-smtp-user" value="${settings.smtp_user||''}" placeholder="vous@gmail.com">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Mot de passe SMTP</label>
-              <input id="set-smtp-password" type="password" value="" placeholder="${settings.smtp_password ? '••••••••' : 'mot de passe'}">
-              <div style="font-size:11px;color:var(--text3);margin-top:3px">Chiffré AES-256 en base. Laisser vide pour ne pas modifier.</div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Email expéditeur</label>
-              <input id="set-smtp-from" value="${settings.smtp_from||''}" placeholder="printflow@exemple.com">
-            </div>
-            <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:20px">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-                <input type="checkbox" id="set-smtp-secure" ${settings.smtp_secure==='true'?'checked':''}>
-                SSL/TLS (port 465)
-              </label>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn btn-sm" onclick="testSmtpConnection()">🔌 Tester la connexion</button>
-            <button class="btn btn-sm btn-primary" onclick="sendTestReport()">📧 Envoyer un rapport test</button>
-          </div>
-          <div id="smtp-test-result" style="margin-top:8px;font-size:13px"></div>
-        </div>
-      </div>
-      <div style="margin-top:12px">
-        <button class="btn btn-primary" onclick="saveSettings()">Enregistrer</button>
-      </div>
-    </div>`;
-      if (typeof checkSpoolmanStatus === 'function') checkSpoolmanStatus();
+`;
       var ttUrlEl = document.getElementById('tigertag-webhook-url');
       if (ttUrlEl) ttUrlEl.textContent = window.location.origin + '/api/tigertag/webhook';
       loadTigerTagRecent();
-      var apiBaseEl = document.getElementById('api-base-url');
-      var haUrlEl   = document.getElementById('ha-example-url');
-      if (apiBaseEl) apiBaseEl.textContent = window.location.origin + '/api';
-      if (haUrlEl)   haUrlEl.textContent   = window.location.origin;
-      loadPixelItConfig();
-      break;
-
-    case 'imprimantes':
-      el.innerHTML = `
-    <!-- ── Imprimantes ────────────────────────────── -->
-    <div class="card">
-      <div class="card-header"><span class="card-title">Accès interfaces imprimantes</span></div>
-      <table>
-        <thead><tr><th>Imprimante</th><th>Type</th><th>URL</th><th>Accès</th></tr></thead>
-        <tbody id="printer-access-table">
-          <tr><td colspan="4" style="color:var(--text3)">Chargement…</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- ── Consommables — modèles prédéfinis ────── -->
-    <div class="card">
-      <div class="card-header" style="cursor:pointer" onclick="toggleCollapse('consumable-section')">
-        <span class="card-title">Consommables — modèles prédéfinis</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openAddConsumableTemplate()">+ Nouveau modèle</button>
-          <span id="consumable-section-icon" style="font-size:12px;color:var(--text3)">▼</span>
-        </div>
-      </div>
-      <div id="consumable-section">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        Ces modèles apparaissent comme suggestions lors de l'ajout d'un consommable sur une imprimante.
-        Modifiez les intervalles selon votre matériel.
-      </p>
-      <div id="consumable-templates-list">
-        <div style="color:var(--text3);font-size:13px">Chargement…</div>
-      </div>
-      </div><!-- /consumable-section -->
-    </div>
-    <!-- ── Tarification ────────────────────────────── -->
-    <div class="card">
-      <div class="card-header"><span class="card-title">Tarification</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">Tarif électricité (€/kWh)</label>
-          <input id="set-electricity-rate" type="number" step="0.001" min="0"
-                 value="${settings.quote_electricity_rate||'0.20'}"
-                 placeholder="ex: 0.20">
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">
-            Utilisé pour calculer le coût réel des impressions et des devis.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Modèles d'impression ─────────────────── -->
-    <div class="card">
-      <div class="card-header" style="cursor:pointer" onclick="toggleCollapse('print-templates-section')">
-        <span class="card-title">Modèles d'impression</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openAddPrintTemplate()">+ Ajouter</button>
-          <span id="print-templates-section-icon" style="font-size:12px;color:var(--text3)">▼</span>
-        </div>
-      </div>
-      <div id="print-templates-section">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
-        Profils de paramètres réutilisables lors de la création d'une impression.
-      </p>
-      <div id="print-templates-list"><span style="color:var(--text3);font-size:13px">Chargement…</span></div>
-      </div><!-- /print-templates-section -->
-    </div>`;
-      API.get('/printers').then(function(printers) {
-        const el2 = document.getElementById('printer-access-table');
-        if (!el2) return;
-        el2.innerHTML = printers.map(function(p) {
-          return '<tr>' +
-            '<td>' + p.name + '</td>' +
-            '<td>' + interfaceTypeLabel(p.interface_type) + '</td>' +
-            '<td style="font-size:12px;color:var(--text3)">' + (p.interface_url||'Non configurée') + '</td>' +
-            '<td>' + (p.interface_url
-              ? '<button class="btn btn-sm btn-primary" onclick="openPrinterIframe(' + JSON.stringify(p).replace(/"/g, '&quot;') + ')">Ouvrir</button>'
-              : '<span style="color:var(--text3);font-size:12px">—</span>') + '</td>' +
-          '</tr>';
-        }).join('');
-      });
-      loadConsumableTemplates();
-      loadPrintTemplates();
       break;
 
     case 'systeme':
       el.innerHTML = `
     <!-- ── Informations application ───────────────── -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header"><span class="card-title">PrintFlow-3D</span></div>
-      <div class="stat-row"><span class="stat-label">Application</span><span class="stat-val">${settings.app_name||'PrintFlow-3D'}</span></div>
+      <div class="card-header"><span class="card-title">FilaFlow</span></div>
+      <div class="stat-row"><span class="stat-label">Application</span><span class="stat-val">${settings.app_name||'FilaFlow'}</span></div>
       <div class="stat-row"><span class="stat-label">Version</span><span class="stat-val">${settings._version || '—'}</span></div>
       <div class="stat-row"><span class="stat-label">Date de build</span><span class="stat-val">${settings._build_date || '—'}</span></div>
       <div class="stat-row"><span class="stat-label">Backend</span><span class="stat-val">Node.js + Express</span></div>
@@ -1111,74 +489,11 @@ function toggleSetting(key, el) {
     const wrap = document.getElementById('stock-alert-threshold-wrap');
     if (wrap) wrap.style.display = enabled ? 'flex' : 'none';
   }
-  if (key === 'maintenance_alert_enabled') {
-    window._maintenanceAlertEnabled = enabled;
-    const wrap = document.getElementById('maintenance-alert-days-wrap');
-    if (wrap) wrap.style.display = enabled ? 'flex' : 'none';
-  }
   if (key === 'auth_enabled') {
     const cfg = document.getElementById('auth-config');
     if (cfg) cfg.style.display = enabled ? 'block' : 'none';
   }
-  if (key === 'projects_enabled') {
-    window._projectsEnabled = enabled;
-    const navProjects = document.getElementById('nav-projects');
-    if (navProjects) navProjects.style.display = enabled ? '' : 'none';
-    // Si on désactive et qu'on est sur l'onglet projets → revenir au dashboard
-    if (!enabled && currentTab === 'projects') {
-      switchTab('dashboard');
-    }
-  
-  }
-  if (key === 'report_enabled') {
-    var cfgEl = document.getElementById('report-config');
-    if (cfgEl) cfgEl.style.display = enabled ? 'block' : 'none';
-  }
-  if (key === 'quotes_enabled') {
-    var navQ = document.getElementById('nav-quotes');
-    if (navQ) navQ.style.display = enabled ? '' : 'none';
-    if (!enabled && currentTab === 'quotes') switchTab('dashboard');
-  }
-  if (key === 'gallery_enabled') {
-    var navG = document.getElementById('nav-gallery');
-    if (navG) navG.style.display = enabled ? '' : 'none';
-    if (!enabled && currentTab === 'gallery') switchTab('dashboard');
-  }
-}
 
-// ── Toggle Spoolman ───────────────────────────────────────
-function toggleSpoolman() {
-  const toggle  = document.getElementById('spoolman-toggle');
-  const config  = document.getElementById('spoolman-config');
-  const msg     = document.getElementById('spoolman-disabled-msg');
-  const dot     = toggle.querySelector('div');
-  const enabled = dot.style.left === '2px'; // actuellement désactivé → on active
-
-  dot.style.left        = enabled ? '19px' : '2px';
-  toggle.style.background = enabled ? 'var(--accent)' : 'var(--border2)';
-  config.style.display  = enabled ? 'block' : 'none';
-  msg.style.display     = enabled ? 'none'  : 'block';
-
-  // Sauvegarder immédiatement avec l'URL si disponible
-  window._spoolmanEnabled = enabled;
-  const urlEl = document.getElementById('set-spoolman-url');
-  const body = { spoolman_enabled: String(enabled) };
-  if (urlEl) body.spoolman_url = urlEl.value;
-  API.put('/settings', body).then(() => {
-    // Rafraîchir le badge Spoolman dans la sidebar
-    if (typeof checkSpoolmanStatus === 'function') checkSpoolmanStatus();
-    // TigerTag webhook URL
-    const ttUrlEl = document.getElementById('tigertag-webhook-url');
-    if (ttUrlEl) ttUrlEl.textContent = window.location.origin + '/api/tigertag/webhook';
-    // Dernières pesées TigerTag
-    loadTigerTagRecent();
-    // Remplir l'URL de base de l'API
-    const apiBase = window.location.origin;
-    const apiBaseEl = document.getElementById('api-base-url');
-    const haUrlEl   = document.getElementById('ha-example-url');
-    if (apiBaseEl) apiBaseEl.textContent = apiBase + '/api';
-    if (haUrlEl)   haUrlEl.textContent   = apiBase;
-  }).catch(() => {});
 }
 
 // ── Sélecteur de thème ────────────────────────────────────
@@ -1211,53 +526,28 @@ function selectTheme(name) {
 async function saveSettings() {
   const togPrices    = document.getElementById('toggle-show-prices');
   const togLocs      = document.getElementById('toggle-show-locations');
-  const togProjects  = document.getElementById('toggle-projects-enabled');
-  const togQuotes    = document.getElementById('toggle-quotes-enabled');
   const body = {
     app_name:       document.getElementById('set-app-name')?.value,
-    library_path:           document.getElementById('set-library-path')?.value,
-    prints_photo_path:      document.getElementById('set-prints-photo-path')?.value,
-    quote_electricity_rate: document.getElementById('set-electricity-rate')?.value,
     theme:          document.getElementById('set-theme')?.value || 'blue',
     color_mode:     document.getElementById('set-color-mode')?.value || '',
     dark_from:      document.getElementById('set-dark-from')?.value || '20',
     dark_to:        document.getElementById('set-dark-to')?.value || '7',
     show_prices:           togPrices   ? String(togPrices.dataset.enabled   === '1') : 'true',
     show_locations:        togLocs     ? String(togLocs.dataset.enabled     === '1') : 'true',
-    projects_enabled:      togProjects ? String(togProjects.dataset.enabled === '1') : 'true',
-    quotes_enabled:        togQuotes   ? String(togQuotes.dataset.enabled   === '1') : 'true',
-    gallery_enabled:       document.getElementById('toggle-gallery-enabled')?.dataset.enabled === '1' ? 'true' : 'false',
     stock_alert_enabled:        document.getElementById('toggle-stock-alert')?.dataset.enabled === '1' ? 'true' : 'false',
     stock_alert_threshold:      document.getElementById('set-stock-threshold')?.value || '20',
-    maintenance_alert_enabled:  document.getElementById('toggle-maintenance-alert')?.dataset.enabled === '1' ? 'true' : 'false',
-    maintenance_alert_days:     document.getElementById('set-maintenance-days')?.value || '30',
   };
-  const urlEl = document.getElementById('set-spoolman-url');
-  if (urlEl) body.spoolman_url = urlEl.value;
   try {
     await API.put('/settings', body);
     toast('Paramètres sauvegardés', 'success');
     // Mettre à jour le nom dans la sidebar et le titre de la page
-    const newName = body.app_name || 'PrintFlow';
+    const newName = body.app_name || 'FilaFlow';
     const logoEl  = document.querySelector('.logo-name');
     if (logoEl) logoEl.textContent = newName;
     document.title = newName;
-    // Appliquer la visibilité des onglets
-    const navQuotes = document.getElementById('nav-quotes');
-    if (navQuotes) navQuotes.style.display = body.quotes_enabled === 'true' ? '' : 'none';
-    const navGallery = document.getElementById('nav-gallery');
-    if (navGallery) navGallery.style.display = body.gallery_enabled === 'true' ? '' : 'none';
-    checkSpoolmanStatus();
+    window._stockAlertEnabled   = body.stock_alert_enabled === 'true';
+    window._stockAlertThreshold = parseInt(body.stock_alert_threshold) || 20;
   } catch (e) { toast(e.message, 'error'); }
-}
-
-async function testSpoolman() {
-  try {
-    toast('Test en cours…');
-    const r = await API.get('/spoolman/status');
-    if (r.connected) toast(`Spoolman connecté · version ${r.version||'?'}`, 'success');
-    else toast('Spoolman inaccessible', 'error');
-  } catch (e) { toast('Erreur : ' + e.message, 'error'); }
 }
 
 // ── Backup ───────────────────────────────────────────────
@@ -1278,20 +568,6 @@ function toggleBackup() {
 function toggleBackupDest(val) {
   document.getElementById('backup-local-config').style.display = val === 'local' ? 'block' : 'none';
   document.getElementById('backup-nas-config').style.display   = val === 'nas'   ? 'block' : 'none';
-}
-
-function toggleBackupLibrary(el) {
-  const enabled = el.dataset.enabled !== '1';
-  el.dataset.enabled       = enabled ? '1' : '0';
-  el.style.background      = enabled ? 'var(--accent)' : 'var(--border2)';
-  el.querySelector('div').style.left = enabled ? '19px' : '2px';
-}
-
-function toggleBackupEmail(el) {
-  const enabled = el.dataset.enabled !== '1';
-  el.dataset.enabled       = enabled ? '1' : '0';
-  el.style.background      = enabled ? 'var(--accent)' : 'var(--border2)';
-  el.querySelector('div').style.left = enabled ? '19px' : '2px';
 }
 
 async function testNasConnection() {
@@ -1318,16 +594,14 @@ async function testNasConnection() {
 }
 
 async function saveBackupSettings() {
-  const libToggle   = document.getElementById('backup-library-toggle');
-  const emailToggle = document.getElementById('backup-email-toggle');
   const destNas     = document.getElementById('backup-dest-nas')?.checked;
   const body = {
     enabled:        document.getElementById('backup-toggle').querySelector('div').style.left !== '2px',
-    path:           document.getElementById('set-backup-path')?.value || '/opt/printflow/backups',
+    path:           document.getElementById('set-backup-path')?.value || '/opt/filaflow/backups',
     schedule:       document.getElementById('set-backup-schedule')?.value || '0 3 * * *',
     keep:           parseInt(document.getElementById('set-backup-keep')?.value) || 7,
-    libraryEnabled: libToggle ? libToggle.dataset.enabled === '1' : true,
-    reportEmail:    emailToggle ? emailToggle.dataset.enabled === '1' : true,
+    libraryEnabled: false,
+    reportEmail:    false,
     destination:    destNas ? 'nas' : 'local',
     nasIp:          document.getElementById('set-nas-ip')?.value || '',
     nasShare:       document.getElementById('set-nas-share')?.value || '',
@@ -1336,7 +610,7 @@ async function saveBackupSettings() {
       const v = document.getElementById('set-nas-password')?.value;
       return v || undefined; // undefined = ne pas écraser si vide
     })(),
-    nasFolder:      document.getElementById('set-nas-folder')?.value || '/printflow',
+    nasFolder:      document.getElementById('set-nas-folder')?.value || '/filaflow',
   };
   try {
     await API.post('/backup/settings', body);
@@ -1416,14 +690,6 @@ async function loadBackupStatus() {
   } catch(_) {}
 }
 
-function toggleBackupLibrary(el) {
-  const enabled = el.dataset.enabled !== '1';
-  el.dataset.enabled = enabled ? '1' : '0';
-  const dot = el.querySelector('div');
-  dot.style.left       = enabled ? '19px' : '2px';
-  el.style.background  = enabled ? 'var(--accent)' : 'var(--border2)';
-}
-
 async function deleteBackup(filename) {
   confirmDelete('Supprimer cette sauvegarde ?', async () => {
     try { await API.del('/backup/' + filename); toast('Sauvegarde supprimée'); loadBackupStatus(); }
@@ -1494,14 +760,6 @@ async function saveAuthSettings() {
     if (confirmEl) confirmEl.value = '';
     toast('Paramètres de sécurité sauvegardés', 'success');
   } catch(e) { toast(e.message, 'error'); }
-}
-
-async function syncSpoolmanSettings() {
-  try {
-    toast('Synchronisation…');
-    const r = await API.post('/spoolman/sync', {});
-    toast(`${r.imported} importées, ${r.updated} mises à jour`, 'success');
-  } catch (e) { toast('Erreur Spoolman : ' + e.message, 'error'); }
 }
 
 // ── Restauration ─────────────────────────────────────────
@@ -1614,314 +872,6 @@ async function loadTigerTagRecent() {
   }
 }
 
-// ── Consommables — modèles prédéfinis ──────────────────────────────────────
-async function loadConsumableTemplates() {
-  const el = document.getElementById('consumable-templates-list');
-  if (!el) return;
-  try {
-    const templates = await API.get('/consumables/templates');
-    if (!templates.length) {
-      el.innerHTML = '<p style="color:var(--text3);font-size:13px">Aucun modèle disponible.</p>';
-      return;
-    }
-    el.innerHTML =
-      '<table>' +
-        '<thead><tr><th>Nom</th><th>Intervalle</th><th>Description</th><th></th></tr></thead>' +
-        '<tbody>' +
-        templates.map(function(t) {
-          return '<tr>' +
-            '<td style="font-weight:500;font-size:13px">' + t.name + '</td>' +
-            '<td style="font-size:13px">' + t.default_hours + 'h</td>' +
-            '<td style="font-size:12px;color:var(--text3)">' + (t.description||'—') + '</td>' +
-            '<td><div class="td-actions">' +
-              '<button class="btn btn-sm" onclick="editConsumableTemplate(' + t.id + ')">✏</button>' +
-              '<button class="btn btn-sm btn-danger" onclick="deleteConsumableTemplate(' + t.id + ')">✕</button>' +
-            '</div></td>' +
-          '</tr>';
-        }).join('') +
-        '</tbody>' +
-      '</table>';
-  } catch(e) {
-    el.innerHTML = '<p style="color:var(--danger);font-size:13px">Erreur : ' + e.message + '</p>';
-  }
-}
-
-function openAddConsumableTemplate() {
-  openModal(
-    '<div class="form-grid">' +
-      '<div class="form-group full"><label class="form-label">Nom du consommable *</label>' +
-        '<input id="ct-name" placeholder="ex: Huile rails X/Y"></div>' +
-      '<div class="form-group"><label class="form-label">Intervalle par défaut (heures) *</label>' +
-        '<input id="ct-hours" type="number" min="1" placeholder="200"></div>' +
-      '<div class="form-group full"><label class="form-label">Description</label>' +
-        '<input id="ct-desc" placeholder="ex: Lubrification des rails de guidage"></div>' +
-    '</div>' +
-    '<div class="modal-footer">' +
-      '<button class="btn" onclick="closeModal()">Annuler</button>' +
-      '<button class="btn btn-primary" onclick="saveConsumableTemplate(null)">Ajouter</button>' +
-    '</div>',
-    'Nouveau modèle de consommable'
-  );
-}
-
-async function editConsumableTemplate(id) {
-  const templates = await API.get('/consumables/templates').catch(() => []);
-  const t = templates.find(function(x) { return x.id === id; });
-  if (!t) return toast('Modèle introuvable', 'error');
-  openModal(
-    '<div class="form-grid">' +
-      '<div class="form-group full"><label class="form-label">Nom *</label>' +
-        '<input id="ct-name" value="' + t.name + '"></div>' +
-      '<div class="form-group"><label class="form-label">Intervalle (heures) *</label>' +
-        '<input id="ct-hours" type="number" min="1" value="' + t.default_hours + '"></div>' +
-      '<div class="form-group full"><label class="form-label">Description</label>' +
-        '<input id="ct-desc" value="' + (t.description||'') + '"></div>' +
-    '</div>' +
-    '<div class="modal-footer">' +
-      '<button class="btn" onclick="closeModal()">Annuler</button>' +
-      '<button class="btn btn-primary" onclick="saveConsumableTemplate(' + id + ')">Enregistrer</button>' +
-    '</div>',
-    'Modifier — ' + t.name
-  );
-}
-
-async function saveConsumableTemplate(id) {
-  const name  = document.getElementById('ct-name')?.value?.trim();
-  const hours = parseInt(document.getElementById('ct-hours')?.value);
-  const desc  = document.getElementById('ct-desc')?.value?.trim();
-  if (!name)       return toast('Le nom est requis', 'error');
-  if (!hours || hours < 1) return toast('L\'intervalle doit être > 0', 'error');
-  try {
-    if (id) {
-      await API.put('/consumables/templates/' + id, { name, default_hours: hours, description: desc });
-      toast('Modèle mis à jour ✓', 'success');
-    } else {
-      await API.post('/consumables/templates', { name, default_hours: hours, description: desc });
-      toast('Modèle ajouté ✓', 'success');
-    }
-    closeModal();
-    loadConsumableTemplates();
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-async function deleteConsumableTemplate(id) {
-  confirmDelete('Supprimer ce modèle de consommable ?', async function() {
-    try {
-      await API.del('/consumables/templates/' + id);
-      toast('Modèle supprimé', 'success');
-      loadConsumableTemplates();
-    } catch(e) { toast(e.message, 'error'); }
-  });
-}
-
-// ── SMTP — test connexion et envoi rapport test ────────────────────────────
-async function testSmtpConnection() {
-  var resultEl = document.getElementById('smtp-test-result');
-  if (resultEl) resultEl.innerHTML = '<span style="color:var(--text3)">Test en cours…</span>';
-  try {
-    await saveSmtpConfig();
-    var r = await API.post('/report/test-smtp', {});
-    if (resultEl) resultEl.innerHTML = '<span style="color:#10b981">✓ ' + r.message + '</span>';
-  } catch(e) {
-    if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>';
-  }
-}
-
-async function sendTestReport() {
-  var resultEl = document.getElementById('smtp-test-result');
-  if (resultEl) resultEl.innerHTML = '<span style="color:var(--text3)">Envoi en cours…</span>';
-  try {
-    await saveSmtpConfig();
-    var r = await API.post('/report/send-test', {});
-    if (resultEl) resultEl.innerHTML = '<span style="color:#10b981">✓ ' + r.message + '</span>';
-    toast('Rapport de test envoyé ✓', 'success');
-  } catch(e) {
-    if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>';
-  }
-}
-
-async function saveSmtpConfig() {
-  var togReport = document.getElementById('toggle-report-enabled');
-  var body = {
-    enabled:       togReport ? togReport.dataset.enabled === '1' : false,
-    email:         document.getElementById('set-report-email')?.value || '',
-    day:           document.getElementById('set-report-day')?.value || '1',
-    hour:          document.getElementById('set-report-hour')?.value || '8',
-    smtp_host:     document.getElementById('set-smtp-host')?.value || '',
-    smtp_port:     document.getElementById('set-smtp-port')?.value || '587',
-    smtp_secure:   document.getElementById('set-smtp-secure')?.checked || false,
-    smtp_user:     document.getElementById('set-smtp-user')?.value || '',
-    smtp_password: document.getElementById('set-smtp-password')?.value || '',
-    smtp_from:     document.getElementById('set-smtp-from')?.value || '',
-  };
-  await API.put('/report/config', body);
-}
-
-// ── Rendu de la section purge (JS pur, pas de template literal) ──────────
-function renderPurgeSection() {
-  var placeholder = document.getElementById('purge-section-placeholder');
-  if (!placeholder) return;
-
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.style.border = '1px solid rgba(239,68,68,0.2)';
-
-  var items = [
-    { id:'purge-prints',      label:'\uD83D\uDDA8 Impressions',         danger:false, cnt:'cnt-prints'      },
-    { id:'purge-weighings',   label:'\u2696 Pes\u00E9es',               danger:false, cnt:'cnt-weighings'   },
-    { id:'purge-maintenance', label:'\uD83D\uDD27 Maintenances',        danger:false, cnt:'cnt-maintenance'  },
-    { id:'purge-consumables', label:'\uD83D\uDD29 Consommables',        danger:false, cnt:'cnt-consumables'  },
-    { id:'purge-projects',    label:'\uD83D\uDCCB Projets',             danger:false, cnt:'cnt-projects'     },
-    { id:'purge-history',     label:'\uD83D\uDCDC Historique',          danger:false, cnt:'cnt-history'      },
-    { id:'purge-quotes',      label:'\uD83D\uDCC4 Devis',               danger:false, cnt:'cnt-quotes'       },
-    { id:'purge-filaments',   label:'\uD83E\uDDF5 Filaments',           danger:true,  cnt:'cnt-filaments'    },
-    { id:'purge-printers',    label:'\uD83D\uDDA8 Imprimantes',         danger:true,  cnt:'cnt-printers'     },
-    { id:'purge-library',     label:'\uD83D\uDCDA Biblioth\u00E8que',   danger:true,  cnt:'cnt-library', full:true },
-  ];
-
-  var html =
-    '<div class="card-header">' +
-      '<span class="card-title" style="color:var(--danger)">\uD83D\uDDD1 Vider des donn\u00E9es</span>' +
-    '</div>' +
-    '<p style="font-size:13px;color:var(--text2);margin-bottom:14px">' +
-      'Supprime d\u00E9finitivement les donn\u00E9es s\u00E9lectionn\u00E9es. Les param\u00E8tres et mod\u00E8les de consommables ne sont jamais affect\u00E9s. ' +
-      '<strong style="color:var(--danger)">Action irr\u00E9versible.</strong>' +
-    '</p>' +
-    '<div id="purge-stats-display" style="margin-bottom:14px">' +
-      '<button class="btn btn-sm" onclick="loadPurgeStats()">Afficher les compteurs</button>' +
-    '</div>' +
-    '<div id="purge-form" style="display:none">' +
-      '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">' +
-      items.map(function(item) {
-        return '<label class="purge-check" style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);">' +
-          '<input type="checkbox" id="' + item.id + '" onchange="updatePurgeBtn()" style="flex-shrink:0;width:16px;height:16px">' +
-          '<span style="flex:1">' + item.label + '</span>' +
-          '<span id="' + item.cnt + '" style="font-size:11px;color:var(--text3)"></span>' +
-        '</label>';
-      }).join('') +
-      '</div>' +
-      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);padding:12px;margin-bottom:12px;box-sizing:border-box;width:100%">' +
-        '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px;width:100%">' +
-          '<input type="checkbox" id="purge-confirm" onchange="updatePurgeBtn()" style="margin-top:2px;flex-shrink:0;width:16px;height:16px">' +
-          '<span style="color:var(--danger);flex:1;min-width:0;word-break:break-word">Je comprends que cette action est <strong>d\u00E9finitive et irr\u00E9versible</strong>. Les donn\u00E9es supprim\u00E9es ne pourront pas \u00EAtre r\u00E9cup\u00E9r\u00E9es.</span>' +
-        '</label>' +
-      '</div>' +
-      '<button class="btn btn-danger" id="btn-purge" onclick="executePurge()" disabled style="opacity:0.5">' +
-        '\uD83D\uDDD1 Vider les donn\u00E9es s\u00E9lectionn\u00E9es' +
-      '</button>' +
-      '<div id="purge-status" style="margin-top:10px;font-size:13px"></div>' +
-    '</div>';
-
-  card.innerHTML = html;
-  placeholder.replaceWith(card);
-}
-
-// ── Purge des données ──────────────────────────────────────────────────────
-async function loadPurgeStats() {
-  const el = document.getElementById('purge-stats-display');
-  const form = document.getElementById('purge-form');
-  if (el) el.innerHTML = '<span style="color:var(--text3);font-size:13px">Chargement…</span>';
-  try {
-    const stats = await API.get('/settings/purge-stats');
-    if (el) el.innerHTML = '';
-    if (form) form.style.display = 'block';
-
-    // Afficher les compteurs
-    const map = {
-      'cnt-prints':       (stats.prints||0) + ' impression' + (stats.prints!=1?'s':'') +
-                          ', ' + (stats.print_filaments||0) + ' entrée(s) filament',
-      'cnt-weighings':    (stats.filament_weighings||0) + ' pesée' + (stats.filament_weighings!=1?'s':''),
-      'cnt-maintenance':  (stats.maintenance||0) + ' entrée' + (stats.maintenance!=1?'s':''),
-      'cnt-consumables':  (stats.consumables||0) + ' consommable' + (stats.consumables!=1?'s':''),
-      'cnt-projects':     (stats.projects||0) + ' projet' + (stats.projects!=1?'s':''),
-      'cnt-history':      (stats.audit_log||0) + ' entrée' + ((stats.audit_log||0)!=1?'s':''),
-      'cnt-quotes':       (stats.quotes||0) + ' devis',
-      'cnt-filaments':    (stats.filaments||0) + ' bobine' + (stats.filaments!=1?'s':''),
-      'cnt-printers':     (stats.printers||0) + ' imprimante' + (stats.printers!=1?'s':''),
-      'cnt-library':      (stats.library_objects||0) + ' objet' + (stats.library_objects!=1?'s':'') +
-                          ', ' + (stats.library_files||0) + ' fichier' + (stats.library_files!=1?'s':''),
-    };
-    Object.entries(map).forEach(function([id, text]) {
-      var el2 = document.getElementById(id);
-      if (el2) el2.textContent = '(' + text + ')';
-    });
-  } catch(e) {
-    if (el) el.innerHTML = '<span style="color:var(--danger);font-size:13px">Erreur : ' + e.message + '</span>';
-  }
-}
-
-function updatePurgeBtn() {
-  var btn     = document.getElementById('btn-purge');
-  var confirm = document.getElementById('purge-confirm');
-  if (!btn || !confirm) return;
-  var hasSelection = ['purge-prints','purge-weighings','purge-maintenance','purge-consumables',
-    'purge-projects','purge-history','purge-filaments','purge-printers','purge-library']
-    .some(function(id) { var el = document.getElementById(id); return el && el.checked; });
-  var active = confirm.checked && hasSelection;
-  btn.disabled    = !active;
-  btn.style.opacity = active ? '1' : '0.5';
-}
-
-// Mettre à jour le bouton quand on coche/décoche une table
-document.addEventListener('change', function(e) {
-  if (e.target && e.target.closest && e.target.closest('.purge-check')) {
-    updatePurgeBtn();
-  }
-});
-
-async function executePurge() {
-  var confirm = document.getElementById('purge-confirm');
-  if (!confirm || !confirm.checked) return;
-
-  // Collecter les tables sélectionnées
-  var tables = [];
-  var checkMap = {
-    'purge-prints':       ['prints', 'print_filaments'],
-    'purge-weighings':    ['filament_weighings'],
-    'purge-maintenance':  ['maintenance'],
-    'purge-consumables':  ['consumables'],
-    'purge-projects':     ['projects'],
-    'purge-history':      ['audit_log'],
-    'purge-quotes':       ['quotes'],
-    'purge-filaments':    ['filaments'],
-    'purge-printers':     ['printers'],
-    'purge-library':      ['library_files', 'library_objects'],
-  };
-  Object.entries(checkMap).forEach(function([id, tbl]) {
-    var el = document.getElementById(id);
-    if (el && el.checked) tables = tables.concat(tbl);
-  });
-
-  if (!tables.length) return toast('Sélectionnez au moins une table', 'error');
-
-  var statusEl = document.getElementById('purge-status');
-  var btn      = document.getElementById('btn-purge');
-  if (btn) { btn.disabled = true; btn.textContent = 'Suppression en cours…'; }
-  if (statusEl) statusEl.innerHTML = '<span style="color:var(--text3)">Suppression en cours…</span>';
-
-  try {
-    var result = await API.post('/settings/purge', { tables, confirm: true });
-    var total = Object.values(result.deleted).reduce(function(s, n) { return s + n; }, 0);
-    var details = Object.entries(result.deleted)
-      .filter(function(e) { return e[1] > 0; })
-      .map(function(e) { return e[1] + ' ' + e[0]; })
-      .join(', ');
-    if (statusEl) statusEl.innerHTML =
-      '<span style="color:#10b981">✓ ' + total + ' enregistrement' + (total!=1?'s':'') + ' supprimé' + (total!=1?'s':'') +
-      (details ? ' (' + details + ')' : '') + '</span>';
-    toast('Données vidées ✓', 'success');
-    // Réinitialiser le formulaire
-    if (confirm) confirm.checked = false;
-    document.querySelectorAll('.purge-check input[type=checkbox]').forEach(function(el) { el.checked = false; });
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '🗑 Vider les données sélectionnées'; }
-    // Recharger les compteurs
-    setTimeout(loadPurgeStats, 500);
-  } catch(e) {
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger)">Erreur : ' + e.message + '</span>';
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '🗑 Vider les données sélectionnées'; }
-  }
-}
-
 // ── Mode sombre ────────────────────────────────────────────────────────────
 function previewColorMode(mode) {
   // Afficher/masquer les sélecteurs d'heure
@@ -1932,257 +882,6 @@ function previewColorMode(mode) {
     var from = document.getElementById('set-dark-from')?.value || '20';
     var to   = document.getElementById('set-dark-to')?.value   || '7';
     applyColorMode(mode || null, from, to);
-  }
-}
-
-// ── Tapo P100 credentials ──────────────────────────────────────────────────
-async function saveTapoCredentials() {
-  var email    = document.getElementById('set-tapo-email')?.value?.trim();
-  var password = document.getElementById('set-tapo-password')?.value;
-  var resultEl = document.getElementById('tapo-creds-result');
-  if (!email) {
-    if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger)">Email requis</span>';
-    return;
-  }
-  try {
-    await fetch('/api/tapo/tapo-credentials', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: password || '' })
-    }).then(function(r) { return r.json(); });
-    if (resultEl) resultEl.innerHTML = '<span style="color:#10b981">✓ Identifiants sauvegardés</span>';
-    toast('Identifiants Tapo sauvegardés ✓', 'success');
-    if (document.getElementById('set-tapo-password'))
-      document.getElementById('set-tapo-password').value = '';
-  } catch(e) {
-    if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger)">Erreur : ' + e.message + '</span>';
-  }
-}
-
-// ── Toggle Tapo enabled ────────────────────────────────────────────────────
-async function toggleTapoEnabled(el) {
-  var enabled = el.dataset.enabled !== '1';
-  el.dataset.enabled = enabled ? '1' : '0';
-  el.style.background = enabled ? 'var(--accent)' : 'var(--border2)';
-  el.querySelector('div').style.left = enabled ? '19px' : '2px';
-  try {
-    await fetch('/api/tapo/tapo-credentials', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled })
-    });
-    toast('Tapo ' + (enabled ? 'activé' : 'désactivé'), 'success');
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  }
-}
-
-// ── Purge par date ─────────────────────────────────────────────────────────
-
-function renderPurgeDateSection() {
-  var placeholder = document.getElementById('purge-date-placeholder');
-  if (!placeholder) return;
-
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.style.marginTop = '16px';
-  card.style.border = '1px solid rgba(239,68,68,0.2)';
-
-  // Date par défaut : début de l'année courante
-  var defaultDate = new Date();
-  defaultDate.setMonth(0); defaultDate.setDate(1);
-  var defaultDateStr = defaultDate.toISOString().slice(0, 10);
-
-  var items = [
-    { id:'pbd-prints',      table:'prints',      label:'\uD83D\uDDA8 Impressions'  },
-    { id:'pbd-maintenance', table:'maintenance',  label:'\uD83D\uDD27 Maintenances' },
-    { id:'pbd-quotes',      table:'quotes',       label:'\uD83D\uDCC4 Devis'        },
-    { id:'pbd-audit',       table:'audit_log',    label:'\uD83D\uDCDC Historique'   },
-  ];
-
-  card.innerHTML =
-    '<div class="card-header">' +
-      '<span class="card-title" style="color:var(--danger)">\uD83D\uDCC5 Purge par date</span>' +
-    '</div>' +
-    '<p style="font-size:13px;color:var(--text2);margin-bottom:14px">' +
-      'Supprime d\u00E9finitivement les donn\u00E9es ant\u00E9rieures \u00E0 la date choisie. ' +
-      '<strong style="color:var(--danger)">Action irr\u00E9versible.</strong>' +
-    '</p>' +
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">' +
-      '<label style="font-size:13px;font-weight:500">Supprimer les donn\u00E9es ant\u00E9rieures au :</label>' +
-      '<input type="date" id="pbd-date" value="' + defaultDateStr + '"' +
-        ' onchange="loadPurgeDateStats()" style="font-size:13px">' +
-      '<button class="btn btn-sm" onclick="loadPurgeDateStats()">Calculer</button>' +
-    '</div>' +
-    '<div id="pbd-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">' +
-      items.map(function(item) {
-        return '<label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;' +
-          'padding:10px 12px;background:var(--bg3);border-radius:var(--radius)">' +
-          '<input type="checkbox" id="' + item.id + '" data-table="' + item.table + '"' +
-            ' onchange="updatePurgeDateBtn()" style="flex-shrink:0;width:16px;height:16px">' +
-          '<span style="flex:1">' + item.label + '</span>' +
-          '<span id="' + item.id + '-cnt" style="font-size:11px;color:var(--text3)">—</span>' +
-        '</label>';
-      }).join('') +
-    '</div>' +
-    '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);' +
-      'border-radius:var(--radius);padding:12px;margin-bottom:12px">' +
-      '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px">' +
-        '<input type="checkbox" id="pbd-confirm" onchange="updatePurgeDateBtn()" ' +
-          'style="margin-top:2px;flex-shrink:0;width:16px;height:16px">' +
-        '<span style="color:var(--danger)">Je comprends que cette action est ' +
-          '<strong>d\u00E9finitive et irr\u00E9versible</strong>. ' +
-          'Les donn\u00E9es supprim\u00E9es ne pourront pas \u00EAtre r\u00E9cup\u00E9r\u00E9es.</span>' +
-      '</label>' +
-    '</div>' +
-    '<button class="btn btn-danger" id="btn-purge-date" onclick="executePurgeByDate()" ' +
-      'disabled style="opacity:0.5">\uD83D\uDDD1 Purger les donn\u00E9es s\u00E9lectionn\u00E9es</button>' +
-    '<div id="pbd-status" style="margin-top:10px;font-size:13px"></div>';
-
-  placeholder.replaceWith(card);
-}
-
-async function loadPurgeDateStats() {
-  const dateVal = document.getElementById('pbd-date')?.value;
-  if (!dateVal) return;
-
-  const tables = ['prints', 'maintenance', 'quotes', 'audit_log'];
-  const ids    = ['pbd-prints', 'pbd-maintenance', 'pbd-quotes', 'pbd-audit'];
-
-  try {
-    const stats = await API.post('/settings/purge-by-date-stats', {
-      before_date: dateVal,
-      tables,
-    });
-    ids.forEach(function(id, i) {
-      const el = document.getElementById(id + '-cnt');
-      const n  = stats[tables[i]] || 0;
-      if (el) el.textContent = n + ' entr\u00E9e' + (n !== 1 ? 's' : '');
-    });
-  } catch(e) { toast('Erreur : ' + e.message, 'error'); }
-}
-
-function updatePurgeDateBtn() {
-  const confirmed = document.getElementById('pbd-confirm')?.checked;
-  const anyChecked = ['pbd-prints','pbd-maintenance','pbd-quotes','pbd-audit']
-    .some(function(id) { return document.getElementById(id)?.checked; });
-  const btn = document.getElementById('btn-purge-date');
-  if (btn) {
-    btn.disabled = !(confirmed && anyChecked);
-    btn.style.opacity = (confirmed && anyChecked) ? '1' : '0.5';
-  }
-}
-
-async function executePurgeByDate() {
-  const dateVal = document.getElementById('pbd-date')?.value;
-  if (!dateVal) return toast('Date requise', 'error');
-
-  const tableMap = {
-    'pbd-prints':      'prints',
-    'pbd-maintenance': 'maintenance',
-    'pbd-quotes':      'quotes',
-    'pbd-audit':       'audit_log',
-  };
-  const tables = Object.entries(tableMap)
-    .filter(function([id]) { return document.getElementById(id)?.checked; })
-    .map(function([, table]) { return table; });
-
-  if (!tables.length) return toast('Sélectionnez au moins une catégorie', 'error');
-
-  try {
-    const btn = document.getElementById('btn-purge-date');
-    if (btn) { btn.disabled = true; btn.textContent = 'Suppression…'; }
-
-    const result = await API.post('/settings/purge-by-date', {
-      before_date: dateVal,
-      tables,
-      confirm: true,
-    });
-
-    const status = document.getElementById('pbd-status');
-    const total  = Object.values(result.deleted || {}).reduce(function(s, n) { return s + n; }, 0);
-    const dateFmt = new Date(dateVal).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' });
-    if (status) status.innerHTML =
-      '<span style="color:var(--success)">\u2713 ' + total + ' entr\u00E9e' + (total !== 1 ? 's' : '') +
-      ' supprim\u00E9e' + (total !== 1 ? 's' : '') + ' (avant le ' + dateFmt + ')</span>';
-
-    toast('\u2713 Purge effectu\u00E9e — ' + total + ' entr\u00E9es supprim\u00E9es', 'success');
-
-    // Réinitialiser
-    document.getElementById('pbd-confirm').checked = false;
-    ['pbd-prints','pbd-maintenance','pbd-quotes','pbd-audit'].forEach(function(id) {
-      const el = document.getElementById(id);
-      if (el) el.checked = false;
-      const cnt = document.getElementById(id + '-cnt');
-      if (cnt) cnt.textContent = '—';
-    });
-    updatePurgeDateBtn();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-    const btn = document.getElementById('btn-purge-date');
-    if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDDD1 Purger les donn\u00E9es s\u00E9lectionn\u00E9es'; }
-  }
-}
-
-// ── Telegram ─────────────────────────────────────────────────────────────
-
-function toggleTelegram() {
-  const el  = document.getElementById('telegram-toggle');
-  const dot = el.querySelector('div');
-  const enabled = el.dataset.enabled !== '1';
-  el.dataset.enabled      = enabled ? '1' : '0';
-  el.style.background     = enabled ? 'var(--accent)' : 'var(--border2)';
-  dot.style.left          = enabled ? '19px' : '2px';
-  API.post('/telegram/config', { enabled }).catch(function(){});
-}
-
-function toggleTgNotif(el) {
-  const dot     = el.querySelector('div');
-  const enabled = el.dataset.enabled !== '1';
-  el.dataset.enabled  = enabled ? '1' : '0';
-  el.style.background = enabled ? 'var(--accent)' : 'var(--border2)';
-  dot.style.left      = enabled ? '19px' : '2px';
-}
-
-async function saveTelegramSettings() {
-  const token  = document.getElementById('set-tg-token')?.value;
-  const chatId = document.getElementById('set-tg-chatid')?.value;
-  const toggle = document.getElementById('telegram-toggle');
-
-  const getNotif = function(key) {
-    const el = document.getElementById('toggle-' + key);
-    return el ? el.dataset.enabled === '1' : true;
-  };
-
-  const body = {
-    enabled:      toggle ? toggle.dataset.enabled === '1' : false,
-    token:        token  || '',
-    chat_id:      chatId || '',
-    notif_done:   getNotif('telegram_notif_done'),
-    notif_failed: getNotif('telegram_notif_failed'),
-    notif_stock:  getNotif('telegram_notif_stock'),
-    notif_maint:  getNotif('telegram_notif_maint'),
-    notif_daily:  getNotif('telegram_notif_daily'),
-  };
-
-  try {
-    await API.post('/telegram/config', body);
-    toast('Paramètres Telegram enregistrés', 'success');
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-async function testTelegram() {
-  const result = document.getElementById('tg-test-result');
-  if (result) result.textContent = 'Envoi en cours…';
-  try {
-    // Envoyer sans token — le backend utilise la config stockée
-    const r = await API.post('/telegram/test', {});
-    if (result) {
-      result.textContent = r.ok ? '✓ Message envoyé !' : '✗ ' + (r.message || r.error || 'Erreur');
-      result.style.color = r.ok ? 'var(--success)' : 'var(--danger)';
-    }
-  } catch(e) {
-    if (result) { result.textContent = '✗ ' + e.message; result.style.color = 'var(--danger)'; }
   }
 }
 
@@ -2461,7 +1160,7 @@ async function installUpdate(version, downloadUrl) {
     openModal(
       '<div style="padding:8px 0">' +
         '<p style="font-size:14px;margin-bottom:12px">Vous allez installer la version <strong>' + version + '</strong>.</p>' +
-        '<p style="font-size:13px;color:var(--text2);margin-bottom:8px">PrintFlow va redémarrer automatiquement. La mise à jour prend environ 30 secondes.</p>' +
+        '<p style="font-size:13px;color:var(--text2);margin-bottom:8px">FilaFlow va redémarrer automatiquement. La mise à jour prend environ 30 secondes.</p>' +
         '<p style="font-size:12px;color:var(--text3)">⚠ La base de données ne sera pas modifiée automatiquement — consultez le CHANGELOG pour les éventuelles migrations SQL.</p>' +
       '</div>' +
       '<div class="modal-footer">' +
@@ -2490,7 +1189,7 @@ async function installUpdate(version, downloadUrl) {
   if (el) el.innerHTML =
     '<div style="color:var(--text2);font-size:13px;padding:4px 0">' +
       '<div style="font-weight:500;margin-bottom:4px">⏳ Mise à jour en cours…</div>' +
-      '<div style="font-size:12px;color:var(--text3)">Téléchargement et installation de la v' + version + '. PrintFlow va redémarrer dans quelques secondes.</div>' +
+      '<div style="font-size:12px;color:var(--text3)">Téléchargement et installation de la v' + version + '. FilaFlow va redémarrer dans quelques secondes.</div>' +
     '</div>';
 
   try {
@@ -2551,205 +1250,3 @@ async function clearBackendLogs() {
   } catch(e) { toast(e.message, 'error'); }
 }
 
-// ── Gestion modèles d'impression ──────────────────────────────────────────
-async function loadPrintTemplates() {
-  const el = document.getElementById('print-templates-list');
-  if (!el) return;
-  try {
-    const list = await API.get('/print-templates');
-    if (!list.length) {
-      el.innerHTML = '<span style="color:var(--text3);font-size:13px">Aucun modèle.</span>';
-      return;
-    }
-    el.innerHTML = '<table><thead><tr>' +
-      '<th>Nom</th><th>Matière</th><th>Buse</th><th>Plateau</th><th>Couche</th><th>Remplis.</th><th>Vitesse</th><th>Utilisé</th><th></th>' +
-      '</tr></thead><tbody>' +
-      list.map(function(t) {
-        return '<tr>' +
-          '<td style="font-weight:500">' + t.name + '</td>' +
-          '<td style="color:var(--text3)">' + (t.material||'—') + '</td>' +
-          '<td style="text-align:center">' + (t.temp_nozzle ? t.temp_nozzle+'°C' : '—') + '</td>' +
-          '<td style="text-align:center">' + (t.temp_bed ? t.temp_bed+'°C' : '—') + '</td>' +
-          '<td style="text-align:center">' + (t.layer_height ? t.layer_height+'mm' : '—') + '</td>' +
-          '<td style="text-align:center">' + (t.infill_percent ? t.infill_percent+'%' : '—') + '</td>' +
-          '<td style="text-align:center">' + (t.print_speed ? t.print_speed+'mm/s' : '—') + '</td>' +
-          '<td style="text-align:center;color:var(--text3)">' + (t.use_count||0) + 'x</td>' +
-          '<td style="text-align:right;white-space:nowrap">' +
-            '<button class="btn btn-sm" onclick="editPrintTemplate(' + t.id + ')">✏</button> ' +
-            '<button class="btn btn-sm btn-danger" onclick="deletePrintTemplate(' + t.id + ')">✕</button>' +
-          '</td>' +
-        '</tr>';
-      }).join('') +
-      '</tbody></table>';
-  } catch(e) { if (el) el.innerHTML = '<span style="color:var(--danger)">' + e.message + '</span>'; }
-}
-
-function openAddPrintTemplate(existing) {
-  const t = existing || {};
-  openModal(
-    '<div class="form-grid">' +
-      '<div class="form-group full"><label class="form-label">Nom *</label>' +
-        '<input id="tpl-name" value="' + (t.name||'') + '" placeholder="ex: PLA Standard"></div>' +
-      '<div class="form-group"><label class="form-label">Matière</label>' +
-        '<input id="tpl-material" value="' + (t.material||'') + '" placeholder="PLA, PETG, TPU..."></div>' +
-      '<div class="form-group"><label class="form-label">Temp. buse (°C)</label>' +
-        '<input id="tpl-nozzle" type="number" value="' + (t.temp_nozzle||'') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Temp. plateau (°C)</label>' +
-        '<input id="tpl-bed" type="number" value="' + (t.temp_bed||'') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Hauteur couche (mm)</label>' +
-        '<input id="tpl-layer" type="number" step="0.01" value="' + (t.layer_height||'') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Remplissage (%)</label>' +
-        '<input id="tpl-infill" type="number" value="' + (t.infill_percent||'') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Vitesse (mm/s)</label>' +
-        '<input id="tpl-speed" type="number" value="' + (t.print_speed||'') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Ventilateur (%)</label>' +
-        '<input id="tpl-fan" type="number" value="' + (t.fan_speed||'') + '"></div>' +
-      '<div class="form-group full"><label class="form-label">Notes</label>' +
-        '<input id="tpl-notes" value="' + (t.notes||'').replace(/"/g,'&quot;') + '"></div>' +
-    '</div>' +
-    '<div class="modal-footer">' +
-      '<button class="btn" onclick="closeModal()">Annuler</button>' +
-      '<button class="btn btn-primary" onclick="savePrintTemplate(' + (t.id||'null') + ')">' + (t.id?'Enregistrer':'Ajouter') + '</button>' +
-    '</div>',
-    t.id ? 'Modifier le modèle' : 'Nouveau modèle d\'impression'
-  );
-}
-
-async function savePrintTemplate(id) {
-  const name = document.getElementById('tpl-name')?.value?.trim();
-  if (!name) return toast('Nom requis', 'error');
-  const body = {
-    name,
-    material:       document.getElementById('tpl-material')?.value || null,
-    temp_nozzle:    parseInt(document.getElementById('tpl-nozzle')?.value) || null,
-    temp_bed:       parseInt(document.getElementById('tpl-bed')?.value) || null,
-    layer_height:   parseFloat(document.getElementById('tpl-layer')?.value) || null,
-    infill_percent: parseInt(document.getElementById('tpl-infill')?.value) || null,
-    print_speed:    parseInt(document.getElementById('tpl-speed')?.value) || null,
-    fan_speed:      parseInt(document.getElementById('tpl-fan')?.value) || null,
-    notes:          document.getElementById('tpl-notes')?.value || null,
-  };
-  try {
-    if (id) await API.put('/print-templates/' + id, body);
-    else     await API.post('/print-templates', body);
-    closeModal();
-    toast(id ? 'Modèle mis à jour' : 'Modèle ajouté', 'success');
-    loadPrintTemplates();
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-async function editPrintTemplate(id) {
-  const list = await API.get('/print-templates');
-  const t = list.find(function(x){ return x.id === id; });
-  if (t) openAddPrintTemplate(t);
-}
-
-async function deletePrintTemplate(id) {
-  confirmDelete('Supprimer ce modèle ?', async function() {
-    await API.del('/print-templates/' + id);
-    toast('Modèle supprimé');
-    loadPrintTemplates();
-  });
-}
-
-// ── PixelIt ───────────────────────────────────────────────────────────────
-async function loadPixelItConfig() {
-  try {
-    const cfg = await API.get('/pixelit/config');
-
-    // Enabled toggle
-    const toggle = document.getElementById('pi-enabled-toggle');
-    const input  = document.getElementById('pi-enabled');
-    if (toggle && input) {
-      const enabled = cfg.enabled === 'true';
-      input.value = enabled ? '1' : '0';
-      toggle.dataset.v = enabled ? '1' : '0';
-      toggle.style.background = enabled ? 'var(--accent)' : 'var(--bg3)';
-      const dot = toggle.querySelector('div');
-      if (dot) dot.style.transform = enabled ? 'translateX(18px)' : '';
-    }
-
-    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
-    const chk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val !== 'false'; };
-
-    set('pi-ip',           cfg.ip || '');
-    set('pi-brightness',   cfg.brightness || '60');
-    set('pi-clock-color',  cfg.clock_color || '#1E90FF');
-    set('pi-weather-city', cfg.weather_city || '');
-    set('pi-weather-lat',  cfg.weather_lat || '');
-    set('pi-weather-lon',  cfg.weather_lon || '');
-    document.getElementById('pi-brightness-val').textContent = (cfg.brightness||60) + '%';
-
-    chk('pi-rotation',       cfg.rotation_enabled);
-    chk('pi-screen-clock',   cfg.screen_clock);
-    chk('pi-screen-stats',   cfg.screen_stats);
-    chk('pi-screen-weather', cfg.screen_weather);
-    chk('pi-notif-done',     cfg.notif_done);
-    chk('pi-notif-failed',   cfg.notif_failed);
-    chk('pi-notif-progress', cfg.notif_progress);
-    chk('pi-notif-stock',    cfg.notif_stock);
-
-    if (cfg.duration_clock)   document.getElementById('pi-dur-clock').value   = cfg.duration_clock;
-    if (cfg.duration_stats)   document.getElementById('pi-dur-stats').value   = cfg.duration_stats;
-    if (cfg.duration_weather) document.getElementById('pi-dur-weather').value = cfg.duration_weather;
-
-  } catch(e) { console.warn('[PixelIt] Erreur chargement config:', e.message); }
-}
-
-async function savePixelItConfig() {
-  const g = (id) => document.getElementById(id);
-  const gv = (id) => g(id)?.value || '';
-  const gc = (id) => g(id)?.checked ? 'true' : 'false';
-
-  const body = {
-    enabled:           gv('pi-enabled') === '1' ? 'true' : 'false',
-    ip:                gv('pi-ip'),
-    brightness:        gv('pi-brightness'),
-    clock_color:       gv('pi-clock-color'),
-    rotation_enabled:  gc('pi-rotation'),
-    screen_clock:      gc('pi-screen-clock'),
-    screen_stats:      gc('pi-screen-stats'),
-    screen_weather:    gc('pi-screen-weather'),
-    duration_clock:    gv('pi-dur-clock'),
-    duration_stats:    gv('pi-dur-stats'),
-    duration_weather:  gv('pi-dur-weather'),
-    notif_done:        gc('pi-notif-done'),
-    notif_failed:      gc('pi-notif-failed'),
-    notif_progress:    gc('pi-notif-progress'),
-    notif_stock:       gc('pi-notif-stock'),
-    weather_city:      gv('pi-weather-city'),
-    weather_lat:       gv('pi-weather-lat'),
-    weather_lon:       gv('pi-weather-lon'),
-  };
-
-  // Ordre de rotation selon les cases cochées
-  const order = ['clock','stats','weather'].filter(n => body['screen_'+n] === 'true');
-  body.rotation_order = order.join(',');
-
-  try {
-    await API.post('/pixelit/config', body);
-    toast('Configuration PixelIt enregistrée', 'success');
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-async function testPixelIt() {
-  try {
-    await API.post('/pixelit/test', {});
-    toast('Écran de test envoyé au PixelIt', 'success');
-  } catch(e) { toast('PixelIt ne répond pas : ' + e.message, 'error'); }
-}
-
-async function searchWeatherCity() {
-  const city = document.getElementById('pi-weather-city')?.value?.trim();
-  if (!city) return toast('Entrez un nom de ville', 'error');
-  try {
-    const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr&format=json`);
-    const data = await resp.json();
-    if (!data.results?.length) return toast('Ville non trouvée', 'error');
-    const r = data.results[0];
-    document.getElementById('pi-weather-lat').value = r.latitude;
-    document.getElementById('pi-weather-lon').value = r.longitude;
-    document.getElementById('pi-weather-city').value = r.name + ', ' + r.country;
-    toast(`Coordonnées trouvées : ${r.latitude}, ${r.longitude}`, 'success');
-  } catch(e) { toast('Erreur recherche ville : ' + e.message, 'error'); }
-}

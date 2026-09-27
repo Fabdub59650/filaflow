@@ -1,5 +1,5 @@
-// ── PrintFlow Service Worker v1.7.0 ──────────────────────
-const CACHE_NAME    = 'printflow-v2.9.8';
+// ── FilaFlow Service Worker ──────────────────────────────
+const CACHE_NAME    = 'filaflow-v1.0.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -8,18 +8,13 @@ const STATIC_ASSETS = [
   '/js/app.js',
   '/js/nfc.js',
   '/js/components.js',
-  '/js/tabs/dashboard.js',
+  '/js/label-editor.js',
   '/js/tabs/filaments.js',
-  '/js/tabs/prints.js',
-  '/js/tabs/printers.js',
-  '/js/tabs/projects.js',
-  '/js/tabs/maintenance.js',
-  '/js/tabs/stats.js',
-  '/js/tabs/library.js',
+  '/js/tabs/spoolweights.js',
   '/js/tabs/settings.js',
+  '/js/tabs/history.js',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
 ];
 
 // ── Installation ──────────────────────────────────────────

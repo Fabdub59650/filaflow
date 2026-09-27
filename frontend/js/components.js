@@ -53,36 +53,6 @@ function closeModal2() {
   document.getElementById('modal2-overlay').classList.add('hidden');
 }
 
-function openPrinterIframe(printer) {
-  if (!printer.interface_url) return toast('Aucune URL définie pour cette imprimante', 'error');
-  document.getElementById('iframe-modal-title').textContent = printer.name + ' — ' + (printer.interface_type || 'Interface');
-  document.getElementById('printer-iframe').src = `/printer-proxy/${printer.id}/`;
-  document.getElementById('iframe-open-tab').onclick = () => window.open(printer.interface_url, '_blank');
-  document.getElementById('printer-iframe-modal').classList.remove('hidden');
-}
-function closePrinterIframe() {
-  document.getElementById('printer-iframe-modal').classList.add('hidden');
-  document.getElementById('printer-iframe').src = '';
-}
-
-function statusBadge(status) {
-  const map = {
-    idle: ['badge-success', 'Disponible'],
-    printing: ['badge-info', 'En impression'],
-    paused: ['badge-warning', 'En pause'],
-    error: ['badge-danger', 'Erreur'],
-    offline: ['badge-neutral', 'Hors ligne'],
-    maintenance: ['badge-warning', 'Maintenance'],
-    done: ['badge-success', 'Terminé'],
-    failed: ['badge-danger', 'Échec'],
-    cancelled: ['badge-neutral', 'Annulé'],
-    queued: ['badge-neutral', 'En attente'],
-    planned: ['badge-info', 'Planifié'],
-  };
-  const [cls, label] = map[status] || ['badge-neutral', status];
-  return `<span class="badge ${cls}">${label}</span>`;
-}
-
 function pct(remaining, total) {
   if (!total) return 0;
   return Math.round((remaining / total) * 100);
@@ -109,16 +79,3 @@ function confirmDelete(msg, cb) {
   if (confirm(msg)) cb();
 }
 
-function interfaceTypeLabel(t) {
-  const m = { octoprint:'OctoPrint', moonraker:'Moonraker/Klipper', bambu:'Bambu Lab', duet:'Duet WebControl', repetier:'Repetier', other:'Autre' };
-  return m[t] || t || '—';
-}
-
-function printerIcon() {
-  return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-    <rect x="2" y="6" width="16" height="9" rx="2"/>
-    <rect x="6" y="2" width="8" height="5" rx="1"/>
-    <path d="M6 15h8v3a1 1 0 01-1 1H7a1 1 0 01-1-1v-3z"/>
-    <circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/>
-  </svg>`;
-}

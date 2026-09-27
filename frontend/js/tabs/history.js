@@ -7,13 +7,8 @@ async function renderHistory() {
     '<select id="hist-entity" onchange="renderHistory()" style="font-size:12px;margin-right:8px">' +
       '<option value="">🗂 Toutes les entités</option>' +
       '<option value="filament">🧵 Filaments</option>' +
-      '<option value="print">🖨 Impressions</option>' +
-      '<option value="printer">⚙️ Imprimantes</option>' +
-      '<option value="project">📁 Projets</option>' +
-      '<option value="quote">📄 Devis</option>' +
-      '<option value="maintenance">🔧 Maintenance</option>' +
-      '<option value="library_object">📚 Bibliothèque</option>' +
       '<option value="nfc">📡 NFC</option>' +
+      '<option value="settings">⚙️ Paramètres</option>' +
     '</select>' +
     '<button class="btn btn-sm" onclick="renderHistory()">↺ Actualiser</button>';
 
@@ -73,6 +68,7 @@ async function renderHistory() {
     project:        '📁 Projet',
     library_object: '📚 Bibliothèque',
     nfc:            '📡 NFC',
+    settings:       '⚙️ Paramètres',
     quote:          '📄 Devis',
     maintenance:    '🔧 Maintenance',
   };

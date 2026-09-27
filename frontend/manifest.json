@@ -1,7 +1,7 @@
 {
-  "name": "PrintFlow-3D",
-  "short_name": "PrintFlow-3D",
-  "description": "Gestion d'impressions 3D et filaments",
+  "name": "FilaFlow",
+  "short_name": "FilaFlow",
+  "description": "Gestion du stock de filament (pesées, NFC)",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1917",
@@ -29,13 +29,8 @@
     {
       "name": "Filaments",
       "url": "/#filaments",
-      "description": "G\u00e9rer les filaments"
-    },
-    {
-      "name": "Nouvelle impression",
-      "url": "/#prints",
-      "description": "Ajouter une impression"
+      "description": "Gérer les filaments"
     }
   ],
-  "version": "2.9.6"
+  "version": "1.0.0"
 }
