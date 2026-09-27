@@ -75,6 +75,9 @@ const backupRouter = require('express').Router();
 backupService.setupRoutes(backupRouter);
 app.use('/api/backup', backupRouter);
 
+// Route API inconnue → 404 JSON (au lieu de renvoyer index.html)
+app.use('/api', (req, res) => res.status(404).json({ error: 'Route API inconnue : ' + req.originalUrl }));
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));

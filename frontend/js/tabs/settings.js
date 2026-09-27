@@ -107,7 +107,7 @@ async function renderSettings() {
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
           <div>
             <div style="font-size:13px">Gestion des emplacements</div>
-            <div style="font-size:11px;color:var(--text3)">Affiche le champ Emplacement dans les fiches filament et imprimante</div>
+            <div style="font-size:11px;color:var(--text3)">Affiche le champ Emplacement dans les fiches filament</div>
           </div>
           <div onclick="toggleSetting('show_locations', this)" id="toggle-show-locations"
                data-enabled="${settings.show_locations!=='false'?'1':'0'}"
