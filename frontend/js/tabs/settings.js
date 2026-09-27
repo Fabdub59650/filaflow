@@ -1062,10 +1062,6 @@ async function loadSystemHealth() {
       : h.disk_pct > 75 ? '#f59e0b'
       : 'var(--accent)';
 
-    const ssdColor = !h.ssd_pct ? 'var(--accent)'
-      : h.ssd_pct > 90 ? '#ef4444'
-      : h.ssd_pct > 75 ? '#f59e0b'
-      : 'var(--accent)';
     const memColor = !h.mem_pct ? 'var(--accent)'
       : h.mem_pct > 85 ? '#ef4444'
       : h.mem_pct > 70 ? '#f59e0b'
@@ -1107,7 +1103,7 @@ async function loadSystemHealth() {
       // Disque
       '<div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
-          '<span style="font-size:12px;color:var(--text3)">💾 Espace disque</span>' +
+          '<span style="font-size:12px;color:var(--text3)">💾 Carte SD</span>' +
           '<span style="font-size:13px;font-weight:600">' + fmtBytes(h.disk_used) + ' / ' + fmtBytes(h.disk_total) + '</span>' +
         '</div>' +
         bar(h.disk_pct || 0, diskColor) +
@@ -1115,18 +1111,6 @@ async function loadSystemHealth() {
           (h.disk_pct > 90 ? ' <span style="color:#ef4444">⚠ Espace critique</span>' : '') +
         '</div>' +
       '</div>' +
-      (h.ssd_total ? (
-      '<div class="stat-card">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-          '<span style="font-size:12px;color:var(--text3)">🗄️ SSD USB (/mnt/data)</span>' +
-          '<span style="font-size:13px;font-weight:600;color:' + ssdColor + '">' + fmtBytes(h.ssd_used) + ' / ' + fmtBytes(h.ssd_total) + '</span>' +
-        '</div>' +
-        bar(h.ssd_pct || 0, ssdColor) +
-        '<div style="font-size:11px;color:var(--text3);margin-top:3px">' + (h.ssd_pct||0) + '% utilisé · ' + fmtBytes(h.ssd_free) + ' libres' +
-          (h.ssd_pct > 90 ? ' <span style="color:#ef4444">⚠ Espace critique</span>' : '') +
-        '</div>' +
-      '</div>'
-      ) : '') +
       '';
 
   } catch(e) {

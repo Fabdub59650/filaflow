@@ -105,21 +105,6 @@ router.get('/system-health', async (req, res) => {
       result.disk_pct   = parseInt(df[4]);
     } catch(_) { result.disk_total = null; result.disk_used = null; result.disk_free = null; result.disk_pct = null; }
 
-    // ── Espace SSD USB (/mnt/data) ────────────────────────────────────────
-    try {
-      const dfSSD = execSync('df -B1 /mnt/data 2>/dev/null', { timeout: 3000 }).toString().split('\n')[1];
-      if (dfSSD) {
-        const parts = dfSSD.split(/\s+/);
-        result.ssd_total = parseInt(parts[1]);
-        result.ssd_used  = parseInt(parts[2]);
-        result.ssd_free  = parseInt(parts[3]);
-        result.ssd_pct   = parseInt(parts[4]);
-        result.ssd_mount = '/mnt/data';
-      } else {
-        result.ssd_total = null; result.ssd_used = null; result.ssd_free = null; result.ssd_pct = null; result.ssd_mount = null;
-      }
-    } catch(_) { result.ssd_total = null; result.ssd_used = null; result.ssd_free = null; result.ssd_pct = null; result.ssd_mount = null; }
-
     // ── Uptime ────────────────────────────────────────────────────────────
     try {
       const uptimeRaw = fs.readFileSync('/proc/uptime', 'utf8');

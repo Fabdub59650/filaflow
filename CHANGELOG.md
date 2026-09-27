@@ -1,5 +1,11 @@
 # Changelog — FilaFlow
 
+## 1.1.2 — septembre 2026
+
+- Paramètres › Système : suppression de la jauge « SSD USB (/mnt/data) », le disque externe
+  n'étant plus utilisé (elle affichait en réalité l'espace de la carte SD une fois le disque retiré).
+  La jauge disque est renommée « Carte SD ».
+
 ## 1.1.1 — septembre 2026 — mises à jour visibles immédiatement
 
 - PWA : stratégie « réseau d'abord » pour les pages, scripts et styles ; le cache ne sert plus
