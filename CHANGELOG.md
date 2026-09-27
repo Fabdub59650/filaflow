@@ -1,5 +1,16 @@
 # Changelog — FilaFlow
 
+## 1.1.1 — septembre 2026 — mises à jour visibles immédiatement
+
+- PWA : stratégie « réseau d'abord » pour les pages, scripts et styles ; le cache ne sert plus
+  qu'en cas de coupure réseau (délai de bascule 4 s). Une nouvelle version s'affiche dès le
+  premier chargement, sans Ctrl+F5.
+- Polices et bibliothèques externes toujours servies depuis le cache (fichiers immuables)
+- Le service worker n'intercepte plus l'API ni le flux NFC (SSE)
+- Rechargement automatique unique quand une nouvelle version du service worker prend la main
+- Flux NFC recyclé toutes les 60 s avec reconnexion silencieuse : débloque la transition
+  depuis l'ancien service worker, sans clignotement du badge NFC
+
 ## 1.1.0 — septembre 2026 — look « Atelier »
 
 - Nouvelle identité visuelle : graphite par défaut, accent orange « Signal », variante claire « béton »

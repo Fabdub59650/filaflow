@@ -39,15 +39,21 @@ function nfcConnect() {
     _dispatch('linked', JSON.parse(e.data));
   });
 
+  // Fermeture planifiée par le serveur : reconnexion silencieuse
+  _nfcEventSource.addEventListener('bye', () => {
+    if (_nfcEventSource) _nfcEventSource.close();
+    _nfcEventSource = null;
+    setTimeout(nfcConnect, 1000);
+  });
+
   _nfcEventSource.onerror = () => {
+    if (_nfcEventSource) _nfcEventSource.close();
+    _nfcEventSource = null;
     _nfcStatus.available = false;
     _updateNfcIndicator();
     _updateNfcSidebarBadge();
     // Reconnexion auto dans 5s
-    setTimeout(() => {
-      _nfcEventSource = null;
-      nfcConnect();
-    }, 5000);
+    setTimeout(nfcConnect, 5000);
   };
 }
 

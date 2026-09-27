@@ -38,6 +38,9 @@ function addSseClient(res) {
   res.setHeader('X-Accel-Buffering', 'no'); // désactive le buffering Nginx
   res.flushHeaders();
 
+  // Délai de reconnexion automatique du navigateur
+  res.write('retry: 10000\n\n');
+
   // Envoyer l'état courant immédiatement
   res.write(`event: status\ndata: ${JSON.stringify({
     available: isAvailable,
@@ -50,8 +53,15 @@ function addSseClient(res) {
     catch (_) { clearInterval(keepalive); }
   }, 25000);
 
+  // Recyclage périodique de la connexion : le client se reconnecte aussitôt.
+  // Évite qu'un flux sans fin bloque l'activation d'un nouveau service worker.
+  const recycle = setTimeout(() => {
+    try { res.write('event: bye\ndata: {}\n\n'); res.end(); } catch (_) {}
+  }, parseInt(process.env.SSE_RECYCLE_MS) || 60000);
+
   sseClients.push(res);
   res.on('close', () => {
+    clearTimeout(recycle);
     clearInterval(keepalive);
     sseClients = sseClients.filter(c => c !== res);
   });

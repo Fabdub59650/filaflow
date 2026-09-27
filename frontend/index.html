@@ -129,9 +129,18 @@ window.onerror = function(msg, src, line, col, err) {
   <script>
   // ── Service Worker ────────────────────────────────────────
   if ('serviceWorker' in navigator) {
+    // Recharger une seule fois quand une nouvelle version du service worker
+    // prend la main (transition depuis une ancienne version en cache).
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloadedForSW = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (!hadController || reloadedForSW) return;
+      reloadedForSW = true;
+      window.location.reload();
+    });
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js')
-        .then(function(reg) { console.log('[PWA] SW enregistré', reg.scope); })
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then(function(reg) { reg.update().catch(function(){}); })
         .catch(function(e)  { console.warn('[PWA] SW erreur', e); });
     });
   }
