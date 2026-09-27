@@ -17,6 +17,11 @@
 const router = require('express').Router();
 const db     = require('../db');
 
+// Diffusion temps réel vers les navigateurs ouverts (flux SSE du module NFC)
+function notify(event, data) {
+  try { require('../nfc').broadcast(event, data); } catch (_) {}
+}
+
 // POST /api/tigertag/webhook
 router.post('/webhook', async (req, res) => {
   try {
@@ -57,6 +62,7 @@ router.post('/webhook', async (req, res) => {
     );
 
     if (!filament) {
+      notify('weighing_unknown', { uid: uid_hex.trim(), gross: grossW, at: new Date().toISOString() });
       return res.status(404).json({
         success: false,
         error: 'Filament non trouvé pour cet UID NFC : ' + uid_hex,
@@ -92,6 +98,13 @@ router.post('/webhook', async (req, res) => {
     ).catch(() => {}); // non bloquant
 
     console.log(`[TigerTag] Pesée auto : ${filament.name} — brut ${grossW}g → net ${netWeight}g`);
+
+    notify('weighing', {
+      source: 'scale', weighing_id: result.insertId,
+      filament_id: filament.id, name: filament.name, color_hex: filament.color_hex,
+      net: netWeight, previous: prevWeight, total: parseFloat(filament.weight_total) || 0,
+      at: new Date().toISOString(),
+    });
 
     // Réponse compatible avec le format cloud TigerTag
     // L'ESP32 utilisera weight_available pour afficher le poids net

@@ -515,7 +515,7 @@ function spoolCardHtml(f) {
     (f.parent_filament_id ? '<span class="tag">Partielle' + (f.spool_label ? ' · ' + escHtml(f.spool_label) : '') + '</span>' : '') +
     (f.archived ? '<span class="tag">Archivée</span>' : '') +
     (f.nfc_uid ? '<span class="tag" title="Puce NFC : ' + escHtml(f.nfc_uid) + '">NFC</span>' : '');
-  return '<div class="spool-card' + (low ? ' low' : '') + (f.archived ? ' archived' : '') + (f.parent_filament_id ? ' partial' : '') + '"' +
+  return '<div data-id="' + f.id + '" class="spool-card' + (low ? ' low' : '') + (f.archived ? ' archived' : '') + (f.parent_filament_id ? ' partial' : '') + '"' +
       ' tabindex="0" role="button" aria-label="Ouvrir la fiche ' + escHtml(f.name) + '"' +
       ' onclick="openFilamentForm(' + f.id + ')" onkeydown="if(event.key===\'Enter\')openFilamentForm(' + f.id + ')">' +
     '<div class="spool-top"><span class="spool-code">' + code + '</span><span class="spool-tags">' + tags + '</span></div>' +
@@ -1988,3 +1988,56 @@ function printFilamentLabel(id) {
   </body></html>`);
   win.document.close();
 }
+
+
+// ── Pesées en temps réel ──────────────────────────────────────────────────
+// Reçues via le flux SSE : la carte se met à jour sans recharger la page.
+function fmtGrams(v) { return Math.round(v).toLocaleString('fr-FR') + ' g'; }
+
+function showWeighingToast(d) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const delta = Math.round(d.net - d.previous);
+  const deltaTxt = delta === 0 ? 'inchangé' : (delta > 0 ? '+' : '−') + fmtGrams(Math.abs(delta)) + ' depuis la dernière pesée';
+  const pct = d.total > 0 ? Math.round(d.net / d.total * 100) : null;
+  const el = document.createElement('div');
+  el.className = 'toast toast-weigh';
+  el.setAttribute('role', 'status');
+  el.innerHTML =
+    '<span class="tw-swatch" style="background:' + escHtml(d.color_hex || '#888') + '"></span>' +
+    '<span class="tw-body">' +
+      '<span class="tw-label">Balance</span>' +
+      '<span class="tw-name">' + escHtml(d.name) + '</span>' +
+      '<span class="tw-weight">' + fmtGrams(d.net) + (pct !== null ? ' · ' + pct + ' %' : '') + '</span>' +
+      '<span class="tw-delta' + (delta > 0 ? ' up' : '') + '">' + deltaTxt + '</span>' +
+    '</span>';
+  el.onclick = function() { el.remove(); };
+  container.appendChild(el);
+  setTimeout(function() { try { el.remove(); } catch(_) {} }, 7000);
+}
+
+function onLiveWeighing(d) {
+  const f = allFilaments.find(function(x) { return String(x.id) === String(d.filament_id); });
+  if (f) {
+    f.weight_remaining = d.net;
+    f.last_weighed_at  = d.at;
+  }
+  if (d.source === 'scale') {
+    showWeighingToast(d);
+    if (typeof refreshScaleStatus === 'function') refreshScaleStatus();
+  }
+  // Rafraîchir l'écran seulement s'il est visible et qu'aucune fenêtre n'est ouverte
+  const modalOpen = !document.getElementById('modal')?.classList.contains('hidden');
+  if (!f || currentTab !== 'filaments' || modalOpen || _openFilamentMenu) return;
+  renderFilamentGrid();
+  const card = document.querySelector('.spool-card[data-id="' + d.filament_id + '"]');
+  if (card) {
+    card.classList.add('flash');
+    setTimeout(function() { card.classList.remove('flash'); }, 2200);
+  }
+}
+
+nfcOn('weighing', onLiveWeighing);
+nfcOn('weighing_unknown', function(d) {
+  toast('Balance : puce inconnue (UID ' + d.uid + ') — ' + fmtGrams(d.gross) + ' brut. Liez-la à une bobine pour enregistrer la pesée.', 'error');
+});

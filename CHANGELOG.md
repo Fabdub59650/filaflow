@@ -1,5 +1,16 @@
 # Changelog — FilaFlow
 
+## 1.4.0 — septembre 2026 — pesées en temps réel
+
+- Balance connectée : dès qu'une bobine est pesée, une notification apparaît sur tous les écrans
+  ouverts (nom, couleur, poids restant, % et variation depuis la dernière pesée)
+- La carte de la bobine se met à jour sans recharger la page, avec une brève surbrillance ;
+  aucun rafraîchissement pendant qu'une fenêtre ou un menu est ouvert
+- Puce inconnue posée sur la balance : notification avec l'UID pour pouvoir la lier
+- Les pesées manuelles mettent aussi à jour les autres écrans ouverts
+- Barre latérale : heure de dernière pesée actualisée immédiatement
+- Diffusion via le flux temps réel existant (SSE du module NFC), sans nouvelle dépendance
+
 ## 1.3.1 — septembre 2026
 
 - Fenêtre NFC : le bouton « Dump » devient « Lire la puce » et reste disponible dans tous les cas —

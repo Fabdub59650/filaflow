@@ -414,4 +414,4 @@ function setupRoutes(router) {
   return router;
 }
 
-module.exports = { startNFC, setupRoutes, getStatus: () => ({ available: isAvailable, lastCard }) };
+module.exports = { startNFC, setupRoutes, broadcast, getStatus: () => ({ available: isAvailable, lastCard }) };

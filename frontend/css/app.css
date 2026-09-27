@@ -452,3 +452,16 @@ body:not([data-tab="filaments"]) .mobile-actions { display: none !important; }
 .group-swatches { display: inline-flex; gap: 4px; }
 .group-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--ring-edge); display: inline-block; }
 .group-count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; }
+
+/* Pesée en temps réel */
+.toast-weigh { display: flex; gap: 12px; align-items: center; max-width: 340px; padding: 12px 14px; cursor: pointer; border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent), 0 12px 30px rgba(0,0,0,0.35); }
+.tw-swatch { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; border: 6px solid var(--bg2); box-shadow: 0 0 0 1px var(--ring-edge); }
+.tw-body { display: flex; flex-direction: column; min-width: 0; }
+.tw-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.tw-name { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.1; }
+.tw-weight { font-family: var(--font-mono); font-weight: 500; font-size: 15px; }
+.tw-delta { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+.tw-delta.up { color: var(--warning); }
+.spool-card.flash { animation: spoolFlash 2.2s ease-out; }
+@keyframes spoolFlash { 0% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (max-width: 768px) { body[data-tab="filaments"] #toast-container { bottom: 92px; } }

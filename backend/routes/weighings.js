@@ -51,6 +51,15 @@ router.post('/', async (req, res) => {
     const [[weighing]] = await db.query('SELECT * FROM filament_weighings WHERE id=?', [result.insertId]);
     const [[updated]]  = await db.query('SELECT * FROM filaments WHERE id=?', [filament_id]);
 
+    try {
+      require('../nfc').broadcast('weighing', {
+        source: 'manual', weighing_id: result.insertId,
+        filament_id: updated.id, name: updated.name, color_hex: updated.color_hex,
+        net: netWeight, previous: prevWeight, total: parseFloat(updated.weight_total) || 0,
+        at: new Date().toISOString(),
+      });
+    } catch (_) {}
+
     res.status(201).json({ weighing, filament: updated });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

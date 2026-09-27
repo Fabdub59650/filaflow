@@ -39,6 +39,14 @@ function nfcConnect() {
     _dispatch('linked', JSON.parse(e.data));
   });
 
+  // Pesées en temps réel (balance connectée et pesées manuelles)
+  _nfcEventSource.addEventListener('weighing', e => {
+    _dispatch('weighing', JSON.parse(e.data));
+  });
+  _nfcEventSource.addEventListener('weighing_unknown', e => {
+    _dispatch('weighing_unknown', JSON.parse(e.data));
+  });
+
   // Fermeture planifiée par le serveur : reconnexion silencieuse
   _nfcEventSource.addEventListener('bye', () => {
     if (_nfcEventSource) _nfcEventSource.close();
