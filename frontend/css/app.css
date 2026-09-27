@@ -465,3 +465,8 @@ body:not([data-tab="filaments"]) .mobile-actions { display: none !important; }
 .spool-card.flash { animation: spoolFlash 2.2s ease-out; }
 @keyframes spoolFlash { 0% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (max-width: 768px) { body[data-tab="filaments"] #toast-container { bottom: 92px; } }
+
+/* Indication d'orthographe sous un champ */
+.field-hint { font-size: 11px; color: var(--text3); margin-top: 4px; min-height: 0; }
+.field-hint:empty { display: none; }
+.hint-fix { background: none; border: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }

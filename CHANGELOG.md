@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.6.0 — septembre 2026 — suggestions de saisie
+
+- Fiche filament : les champs « Nom couleur » et « Marque » proposent les valeurs déjà utilisées
+- Si la saisie correspond à une valeur existante écrite autrement (casse, accents, espaces),
+  indication « Déjà utilisé sous la forme … » avec correction en un clic
+- Pour chaque nom, l'orthographe proposée est la plus fréquente dans l'inventaire
+- Création depuis une puce ELEGOO : le nom de couleur approché reprend l'orthographe existante
+
 ## 1.5.0 — septembre 2026 — fiche créée depuis une puce ELEGOO
 
 - Fenêtre NFC › « Lire la puce » : sur une puce ELEGOO non liée, bouton

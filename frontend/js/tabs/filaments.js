@@ -741,7 +741,9 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
     <div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Identification</div>
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div><label class="form-label">Nom *</label><input id="ff-name" value="${escHtml(f.name||'')}">${f._nfcUid ? `<input type="hidden" id="ff-nfc-uid" value="${escHtml(f._nfcUid)}">` : ''}</div>
-      <div><label class="form-label">Marque</label><input id="ff-brand" value="${f.brand||''}"></div>
+      <div><label class="form-label">Marque</label><input id="ff-brand" value="${escHtml(f.brand||'')}" list="ff-brand-list" autocomplete="off" oninput="checkNameSpelling('brand')">
+        <datalist id="ff-brand-list">${knownValues('brand').map(v => '<option value="' + escHtml(v) + '"></option>').join('')}</datalist>
+        <div id="ff-brand-hint" class="field-hint"></div></div>
       <div><label class="form-label">N° de bobine</label><input id="ff-spool-num" value="${f.spool_number||''}" placeholder="ex: SN-001"></div>
     </div>
 
@@ -773,7 +775,9 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
       <div><label class="form-label">Couleur</label>
         <input id="ff-color" type="color" value="${f.color_hex||'#cccccc'}" style="height:36px;width:100%;padding:2px 4px">
       </div>
-      <div><label class="form-label">Nom couleur</label><input id="ff-colorname" value="${f.color_name||''}"></div>
+      <div><label class="form-label">Nom couleur</label><input id="ff-colorname" value="${escHtml(f.color_name||'')}" list="ff-color-list" autocomplete="off" oninput="checkNameSpelling('color_name')">
+        <datalist id="ff-color-list">${knownValues('color_name').map(v => '<option value="' + escHtml(v) + '"></option>').join('')}</datalist>
+        <div id="ff-colorname-hint" class="field-hint"></div></div>
       <div><label class="form-label">Diamètre (mm)</label>
         <select id="ff-diam">
           <option ${(f.diameter||1.75)==1.75?'selected':''}>1.75</option>
@@ -857,6 +861,8 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
       <button class="btn" onclick="closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveFilament(${id||'null'})">Enregistrer</button>
     </div>`, id ? 'Modifier filament' : (isDuplicate ? 'Nouveau filament (copie de ' + (f.name||'') + ')' : (defaultParentId ? 'Ajouter une bobine partielle' : 'Ajouter un filament')), { wide: true });
+  checkNameSpelling('brand');
+  checkNameSpelling('color_name');
   if (f._nfcUid) {
     const t = document.querySelector('#modal .modal-title');
     if (t) t.textContent = 'Nouvelle bobine depuis la puce';
@@ -2102,3 +2108,47 @@ function createFilamentFromTag(d, uid) {
   const open = function() { openFilamentForm(null, null, src); };
   if (currentTab !== 'filaments') { switchTab('filaments'); setTimeout(open, 600); } else open();
 }
+
+
+// ── Suggestions de saisie : noms de couleur et marques déjà utilisés ─────
+// Évite les variantes (« Gris » / « gris » / « Gris  ») qui fragmentent les regroupements.
+function normName(v) {
+  return String(v || '').trim().replace(/\s+/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+// Valeurs distinctes, avec pour chaque variante l'orthographe la plus utilisée
+function knownValues(field) {
+  const byKey = {};
+  allFilaments.forEach(function(x) {
+    const raw = String(x[field] || '').trim().replace(/\s+/g, ' ');
+    if (!raw) return;
+    const k = normName(raw);
+    byKey[k] = byKey[k] || {};
+    byKey[k][raw] = (byKey[k][raw] || 0) + 1;
+  });
+  return Object.values(byKey).map(function(spellings) {
+    return Object.entries(spellings).sort(function(a, b) { return b[1] - a[1]; })[0][0];
+  }).sort(function(a, b) { return a.localeCompare(b, 'fr', { sensitivity: 'base' }); });
+}
+
+function checkNameSpelling(field) {
+  const input = document.getElementById(field === 'brand' ? 'ff-brand' : 'ff-colorname');
+  const hint  = document.getElementById(field === 'brand' ? 'ff-brand-hint' : 'ff-colorname-hint');
+  if (!input || !hint) return;
+  const typed = input.value;
+  const k = normName(typed);
+  const match = k ? knownValues(field).find(function(v) { return normName(v) === k; }) : null;
+  if (match && match !== typed.trim().replace(/\s+/g, ' ')) {
+    hint.innerHTML = 'Déjà utilisé sous la forme <button type="button" class="hint-fix">' + escHtml(match) + '</button>';
+    hint.querySelector('.hint-fix').onclick = function() { input.value = match; checkNameSpelling(field); };
+  } else {
+    hint.innerHTML = '';
+  }
+}
+
+// Pré-remplissage depuis une puce : reprendre l'orthographe existante si elle existe
+const _guessColorNameRaw = guessColorName;
+guessColorName = function(hex) {
+  const g = _guessColorNameRaw(hex);
+  const same = knownValues('color_name').find(function(v) { return normName(v) === normName(g); });
+  return same || g;
+};
