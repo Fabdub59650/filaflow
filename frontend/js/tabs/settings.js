@@ -342,8 +342,8 @@ async function renderSettings() {
     <div class="card">
       <div class="card-header"><span class="card-title">Export complet</span></div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-        Télécharge une archive <code>.tar.gz</code> contenant la base de données,
-        la bibliothèque de fichiers (STL, 3MF, photos) et la configuration.
+        Télécharge une archive <code>.tar.gz</code> contenant la base de données
+        et la configuration.
         Utile pour migrer vers un nouveau Raspberry Pi ou faire une sauvegarde manuelle complète.
       </p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
