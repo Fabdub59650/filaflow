@@ -24,7 +24,7 @@ router.put('/', async (req, res) => {
   try {
     const entries = Object.entries(req.body);
     // Clés sensibles — ne pas loguer la valeur
-    const sensitiveKeys = ['smtp_password','auth_password','backup_nas_password','nas_password'];
+    const sensitiveKeys = ['auth_password','backup_nas_password','nas_password','tigertag_webhook_token'];
     // Labels lisibles pour les clés importantes
     const keyLabels = {
       smtp_host:          'Serveur SMTP',
@@ -33,6 +33,7 @@ router.put('/', async (req, res) => {
       report_email:       'Email rapport',
       auth_enabled:       'Authentification',
       auth_password:      'Mot de passe app',
+      tigertag_webhook_token: 'Jeton webhook balance',
       backup_enabled:     'Sauvegarde auto',
       backup_destination: 'Destination sauvegarde',
       backup_nas_ip:      'IP NAS',

@@ -637,7 +637,7 @@ function setupRoutes(router) {
       const [settingRows] = await db.query('SELECT key_name, value FROM settings');
       const configObj = {};
       settingRows.forEach(r => {
-        if (!['auth_password','backup_nas_password','telegram_token','vapid_private'].includes(r.key_name)) {
+        if (!['auth_password','backup_nas_password','tigertag_webhook_token'].includes(r.key_name)) {
           configObj[r.key_name] = r.value;
         }
       });

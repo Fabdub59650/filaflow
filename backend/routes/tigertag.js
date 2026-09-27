@@ -20,6 +20,19 @@ const db     = require('../db');
 // POST /api/tigertag/webhook
 router.post('/webhook', async (req, res) => {
   try {
+    // Jeton optionnel : si le réglage tigertag_webhook_token est renseigné,
+    // la balance doit l'envoyer (en-tête X-Webhook-Token ou ?token=… dans l'URL).
+    const [[tokRow]] = await db.query(
+      "SELECT value FROM settings WHERE key_name='tigertag_webhook_token'"
+    ).catch(function(){ return [[null]]; });
+    const expected = tokRow?.value || '';
+    if (expected) {
+      const given = req.headers['x-webhook-token'] || req.query?.token || '';
+      if (given !== expected) {
+        return res.status(401).json({ success: false, error: 'Jeton webhook invalide' });
+      }
+    }
+
     const { uid_hex, weight_gross, notes } = req.body;
 
     if (!uid_hex || weight_gross === undefined) {

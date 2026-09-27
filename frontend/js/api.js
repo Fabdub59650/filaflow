@@ -55,13 +55,20 @@ async function doLogin() {
   const expires = new Date(Date.now() + 365*24*60*60*1000).toUTCString();
   document.cookie = 'pf_auth=' + encodeURIComponent(_authToken) + '; expires=' + expires + '; path=/; SameSite=Lax';
 } catch(_) {}
-      const m = document.getElementById('login-modal');
-      if (m) m.remove();
+      // Recharger pour que tous les écrans se chargent avec le jeton
+      window.location.reload();
     } else {
       const err = document.getElementById('login-error');
       if (err) err.style.display = 'block';
     }
   } catch(_) {}
+}
+
+// En-têtes d'authentification pour les appels fetch() directs (upload, téléchargement)
+function authHeaders(extra) {
+  const h = Object.assign({}, extra || {});
+  if (_authToken) h['X-Auth-Token'] = _authToken;
+  return h;
 }
 
 // ── Wrapper fetch central ─────────────────────────────────

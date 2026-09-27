@@ -391,14 +391,27 @@ async function renderSettings() {
       <div style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;font-size:12px">
         <div style="font-weight:500;margin-bottom:6px">URL du webhook à configurer sur l'ESP32 :</div>
         <code id="tigertag-webhook-url" style="color:var(--accent);font-size:12px"></code>
-        <div style="margin-top:6px;color:var(--text3)">Dans le firmware ESP32 — remplacer l'URL du cloud TigerTag par cette adresse.</div>
+        <div style="margin-top:6px;color:var(--text3)">Dans le firmware ESP32 — remplacer l'URL du cloud TigerTag par cette adresse
+          (avec l'IP du Pi si la balance ne résout pas le nom).</div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Jeton du webhook (optionnel)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="set-tt-token" value="${settings.tigertag_webhook_token||''}" placeholder="Vide = aucun jeton exigé"
+                 style="flex:1;min-width:220px;font-family:monospace;font-size:12px" oninput="updateTigerTagUrl()">
+          <button class="btn btn-sm" onclick="generateTigerTagToken()">Générer</button>
+          <button class="btn btn-sm btn-primary" onclick="saveTigerTagToken()">Enregistrer</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">
+          Si un jeton est défini, la balance doit l'envoyer (<code>?token=…</code> dans l'URL ou en-tête
+          <code>X-Webhook-Token</code>). Mettez d'abord à jour le firmware, puis enregistrez le jeton ici.
+        </div>
       </div>
       <div id="tigertag-recent" style="margin-top:8px"></div>
     </div>
 
 `;
-      var ttUrlEl = document.getElementById('tigertag-webhook-url');
-      if (ttUrlEl) ttUrlEl.textContent = window.location.origin + '/api/tigertag/webhook';
+      updateTigerTagUrl();
       loadTigerTagRecent();
       break;
 
@@ -456,6 +469,30 @@ async function renderSettings() {
       loadBackendLogs();
       break;
   }
+}
+
+// ── Balance : jeton du webhook ───────────────────────────
+function updateTigerTagUrl() {
+  const el  = document.getElementById('tigertag-webhook-url');
+  const tok = document.getElementById('set-tt-token')?.value.trim() || '';
+  if (el) el.textContent = window.location.origin + '/api/tigertag/webhook' +
+    (tok ? '?token=' + encodeURIComponent(tok) : '');
+}
+
+function generateTigerTagToken() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const input = document.getElementById('set-tt-token');
+  if (input) input.value = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  updateTigerTagUrl();
+}
+
+async function saveTigerTagToken() {
+  const tok = document.getElementById('set-tt-token')?.value.trim() || '';
+  try {
+    await API.put('/settings', { tigertag_webhook_token: tok });
+    toast(tok ? 'Jeton enregistré — la balance doit maintenant l\'envoyer' : 'Jeton supprimé — webhook ouvert', 'success');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function switchSettingsTab(tab, btn) {
@@ -800,7 +837,7 @@ async function doRestore() {
   fd.append('backup', file);
 
   try {
-    const resp = await fetch('/api/backup/restore', { method: 'POST', body: fd });
+    const resp = await fetch('/api/backup/restore', { method: 'POST', body: fd, headers: authHeaders() });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Erreur serveur');
     if (status) {
@@ -824,11 +861,11 @@ async function restoreBackup(filename) {
   document.body.appendChild(status);
   try {
     // Télécharger le fichier puis le renvoyer en restore
-    const dlResp = await fetch('/api/backup/download/' + filename);
+    const dlResp = await fetch('/api/backup/download/' + filename, { headers: authHeaders() });
     const blob   = await dlResp.blob();
     const fd = new FormData();
     fd.append('backup', blob, filename);
-    const resp = await fetch('/api/backup/restore', { method: 'POST', body: fd });
+    const resp = await fetch('/api/backup/restore', { method: 'POST', body: fd, headers: authHeaders() });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Erreur');
     status.style.color = 'var(--success)';

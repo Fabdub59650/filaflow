@@ -14,5 +14,12 @@ Première version de FilaFlow, dérivée de PrintFlow-3D v2.9.10.
 - Scripts : installation compatible avec un Pi PrintFlow existant, migration des données, patch
 - `node_modules` et `.env` ne sont plus versionnés
 - Webhook de la balance inchangé (même route, même format)
+- Sécurité : l'authentification s'applique désormais aux requêtes relayées par Nginx
+  (auparavant toutes considérées comme locales). Seules les requêtes lancées sur le Pi
+  lui-même restent exemptées.
+- Balance : webhook exempté de l'authentification de l'interface, avec jeton optionnel
+  (`?token=…` ou en-tête `X-Webhook-Token`) configurable dans Paramètres → Balance
+- Connexion : rechargement automatique après login, jeton envoyé aussi sur les
+  téléchargements et restaurations
 
 Historique de PrintFlow : voir le dépôt printflow-3d.

@@ -38,12 +38,19 @@ const authRouter = require('express').Router();
 setupAuthRoutes(authRouter);
 app.use('/api/auth', authRouter);
 
-// Auth middleware — s'applique aux routes /api/* sauf /api/auth et /api/nfc/events (SSE)
+// Auth middleware — s'applique aux routes /api/* sauf :
+//   - /api/auth (login), /api/nfc/events (flux SSE)
+//   - /api/tigertag/webhook : la balance a son propre jeton optionnel (voir routes/tigertag.js)
 app.use('/api', (req, res, next) => {
-  if (req.path.startsWith('/nfc/events')) return next(); // SSE — pas d'auth
-  // Localhost toujours autorisé (requêtes relayées par Nginx en local)
-  const ip = req.ip || req.connection.remoteAddress || '';
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return next();
+  if (req.path.startsWith('/nfc/events')) return next();
+  if (req.path === '/tigertag/webhook') return next();
+  // Requête vraiment locale (lancée sur le Pi lui-même, sans passer par Nginx) :
+  // toujours autorisée. Une requête relayée par Nginx arrive aussi de 127.0.0.1,
+  // mais porte les en-têtes X-Real-IP / X-Forwarded-For : elle passe par l'auth.
+  const ip = req.socket.remoteAddress || '';
+  const isLoopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  const isProxied  = !!(req.headers['x-real-ip'] || req.headers['x-forwarded-for']);
+  if (isLoopback && !isProxied) return next();
   authMiddleware(req, res, next);
 });
 

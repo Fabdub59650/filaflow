@@ -102,7 +102,7 @@ window._stockAlertEnabled      = false;
 // Charger les settings puis démarrer l'interface
 (async () => {
   try {
-    const s = await fetch('/api/settings').then(r => r.json());
+    const s = await fetch('/api/settings', { headers: authHeaders() }).then(r => r.json());
     if (s.theme) applyTheme(s.theme);
     // Appliquer le mode sombre
     applyColorMode(s.color_mode || null, s.dark_from || '20', s.dark_to || '7');
