@@ -5,7 +5,9 @@ const { logAction } = require('../history');
 router.get('/', async (req, res) => {
   try {
     const archived = req.query.archived === '1' ? 1 : 0;
-    const [rows] = await db.query('SELECT * FROM filaments WHERE archived=? ORDER BY material, name', [archived]);
+    const [rows] = await db.query(
+      `SELECT f.*, (SELECT MAX(w.created_at) FROM filament_weighings w WHERE w.filament_id = f.id) AS last_weighed_at
+       FROM filaments f WHERE f.archived=? ORDER BY f.material, f.name`, [archived]);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

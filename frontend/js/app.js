@@ -9,6 +9,7 @@ let currentTab = 'filaments';
 
 function switchTab(tab) {
   currentTab = tab;
+  document.body.setAttribute('data-tab', tab);
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === tab);
   });
@@ -26,6 +27,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
 // Init
 // ── Thèmes de couleur ────────────────────────────────────
 const THEMES = {
+  signal: { accent:'#FF7A1A', accentBg:'#FBE3D0', accentDark:'#3A2412', accentDarkBg:'#2A1A0E' },
   blue:   { accent:'#185FA5', accentBg:'#E6F1FB', accentDark:'#0C447C', accentDarkBg:'#042C53' },
   green:  { accent:'#1D7A47', accentBg:'#E3F5EC', accentDark:'#0E4F2D', accentDarkBg:'#0A2E1A' },
   purple: { accent:'#6B3FAC', accentBg:'#F0E9FB', accentDark:'#4A2880', accentDarkBg:'#2A1550' },
@@ -37,13 +39,13 @@ const THEMES = {
 };
 
 function applyTheme(name) {
-  const t = THEMES[name] || THEMES.blue;
+  const t = THEMES[name] || THEMES.signal;
   let el = document.getElementById('theme-vars');
   if (!el) { el = document.createElement('style'); el.id = 'theme-vars'; document.head.appendChild(el); }
+  // Graphite par défaut ; variante claire quand data-color-scheme="light"
   el.textContent =
-    ':root { --accent:' + t.accent + '; --accent-bg:' + t.accentBg + '; --info:' + t.accent + '; --info-bg:' + t.accentBg + ' }' +
-    ':root[data-color-scheme="dark"] { --accent:' + t.accent + '; --accent-bg:' + t.accentDark + '; --info:' + t.accent + '; --info-bg:' + t.accentDarkBg + ' }' +
-    '@media (prefers-color-scheme:dark) { :root:not([data-color-scheme="light"]) { --accent:' + t.accent + '; --accent-bg:' + t.accentDark + '; --info:' + t.accent + '; --info-bg:' + t.accentDarkBg + ' } }';
+    ':root { --accent:' + t.accent + '; --accent-bg:' + t.accentDark + '; --info:' + t.accent + '; --info-bg:' + t.accentDarkBg + '; --warning:' + t.accent + '; --warning-bg:' + t.accentDark + ' }' +
+    ':root[data-color-scheme="light"] { --accent:' + t.accent + '; --accent-bg:' + t.accentBg + '; --info-bg:' + t.accentBg + '; --warning-bg:' + t.accentBg + ' }';
 }
 
 // ── Gestion du mode sombre automatique ────────────────────────────────────
@@ -103,7 +105,9 @@ window._stockAlertEnabled      = false;
 (async () => {
   try {
     const s = await fetch('/api/settings', { headers: authHeaders() }).then(r => r.json());
-    if (s.theme) applyTheme(s.theme);
+    applyTheme(s.theme || 'signal');
+    const verEl = document.getElementById('sys-version');
+    if (verEl && s._version) verEl.textContent = 'V' + s._version;
     // Appliquer le mode sombre
     applyColorMode(s.color_mode || null, s.dark_from || '20', s.dark_to || '7');
     // Appliquer le nom de l'application
@@ -133,6 +137,26 @@ window._stockAlertEnabled      = false;
     }
   }
 })();
+
+// ── État de la balance (dernière pesée reçue) ────────────────────────────
+async function refreshScaleStatus() {
+  const badge = document.getElementById('scale-sidebar-badge');
+  const sub   = document.getElementById('scale-sidebar-sub');
+  if (!badge || !sub) return;
+  try {
+    const data = await API.get('/tigertag/status');
+    const last = data.recent && data.recent[0];
+    if (!last) { badge.className = 'spoolman-status offline'; sub.textContent = 'Aucune pesée reçue'; return; }
+    const d = new Date(last.created_at.replace(' ', 'T'));
+    const today = new Date().toDateString() === d.toDateString();
+    const hm = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    sub.textContent = 'Dernière pesée ' + (today ? hm : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + hm);
+    const recent = (Date.now() - d.getTime()) < 7 * 24 * 3600 * 1000;
+    badge.className = 'spoolman-status ' + (recent ? 'online' : 'offline');
+  } catch(_) { /* non bloquant */ }
+}
+setTimeout(refreshScaleStatus, 1500);
+setInterval(refreshScaleStatus, 60000);
 
 // ── Sidebar mobile/tablette ───────────────────────────────────────────────
 function toggleSidebar() {
@@ -265,16 +289,18 @@ function toggleShortcutsHelp() {
   setTimeout(function() { if (panel.parentNode) panel.remove(); }, 5000);
 }
 
+const THEME_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"></path></svg>';
+
 // ── Toggle thème clair/sombre ─────────────────────────────────────────────
 function toggleDarkMode() {
   const root    = document.documentElement;
   const current = root.getAttribute('data-color-scheme');
-  const next    = current === 'dark' ? 'light' : 'dark';
+  const next    = current === 'light' ? 'dark' : 'light';   // graphite par défaut
   root.setAttribute('data-color-scheme', next);
 
   // Mettre à jour l'icône
   const btn = document.getElementById('theme-toggle-btn');
-  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+  if (btn) btn.innerHTML = THEME_ICON;
 
   // Sauvegarder la préférence (override le mode auto)
   try { API.put('/settings', { color_mode: next }); } catch(_) {}
@@ -285,10 +311,8 @@ function toggleDarkMode() {
   function update() {
     const btn = document.getElementById('theme-toggle-btn');
     if (!btn) return;
-    const isDark = document.documentElement.getAttribute('data-color-scheme') === 'dark' ||
-      (!document.documentElement.getAttribute('data-color-scheme') &&
-       window.matchMedia('(prefers-color-scheme: dark)').matches);
-    btn.textContent = isDark ? '☀️' : '🌙';
+    const isDark = document.documentElement.getAttribute('data-color-scheme') !== 'light';
+    btn.innerHTML = THEME_ICON;
     btn.title = isDark ? 'Passer en mode clair' : 'Passer en mode sombre';
   }
   // Observer les changements de thème

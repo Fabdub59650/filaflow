@@ -4,7 +4,7 @@ async function renderSettings() {
   document.getElementById('content').innerHTML = '<div style="color:var(--text3);padding:20px 0">Chargement…</div>';
 
   const settings = await API.get('/settings');
-  const currentTheme    = settings.theme || 'blue';
+  const currentTheme    = settings.theme || 'signal';
 
   if (!window._settingsTab) window._settingsTab = 'interface';
   const tab = window._settingsTab;
@@ -50,7 +50,7 @@ async function renderSettings() {
           <label class="form-label">Thème de couleurs</label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px" id="theme-picker">
             ${Object.entries({
-              blue:'Bleu', green:'Vert', purple:'Violet', red:'Rouge',
+              signal:'Signal', blue:'Bleu', green:'Vert', purple:'Violet', red:'Rouge',
               orange:'Orange', teal:'Turquoise', slate:'Ardoise', pink:'Rose'
             }).map(([key, label]) => `
             <div onclick="selectTheme('${key}')" id="theme-btn-${key}"
@@ -67,7 +67,7 @@ async function renderSettings() {
         <div class="form-group">
           <label class="form-label">Mode sombre</label>
           <select id="set-color-mode" onchange="previewColorMode(this.value)">
-            <option value=""      ${!settings.color_mode||settings.color_mode===''?'selected':''}>Automatique (selon l'OS)</option>
+            <option value=""      ${!settings.color_mode||settings.color_mode===''?'selected':''}>Atelier sombre (par défaut)</option>
             <option value="light" ${settings.color_mode==='light'?'selected':''}>Toujours clair</option>
             <option value="dark"  ${settings.color_mode==='dark'?'selected':''}>Toujours sombre</option>
             <option value="auto-system" ${settings.color_mode==='auto-system'?'selected':''}>Suivre le thème système</option>
@@ -536,7 +536,7 @@ function toggleSetting(key, el) {
 // ── Sélecteur de thème ────────────────────────────────────
 function themeAccent(name) {
   const map = {
-    blue:'#185FA5', green:'#1D7A47', purple:'#6B3FAC', red:'#B03030',
+    signal:'#FF7A1A', blue:'#185FA5', green:'#1D7A47', purple:'#6B3FAC', red:'#B03030',
     orange:'#C05C10', teal:'#0D7D7D', slate:'#4A5568', pink:'#B03070'
   };
   return map[name] || '#185FA5';
@@ -545,7 +545,7 @@ function themeAccent(name) {
 function selectTheme(name) {
   document.getElementById('set-theme').value = name;
   // Mettre à jour visuellement les boutons
-  Object.keys({ blue:1, green:1, purple:1, red:1, orange:1, teal:1, slate:1, pink:1 }).forEach(k => {
+  Object.keys({ signal:1, blue:1, green:1, purple:1, red:1, orange:1, teal:1, slate:1, pink:1 }).forEach(k => {
     const btn = document.getElementById('theme-btn-' + k);
     if (!btn) return;
     btn.style.borderColor = k === name ? 'var(--accent)' : 'transparent';
@@ -565,7 +565,7 @@ async function saveSettings() {
   const togLocs      = document.getElementById('toggle-show-locations');
   const body = {
     app_name:       document.getElementById('set-app-name')?.value,
-    theme:          document.getElementById('set-theme')?.value || 'blue',
+    theme:          document.getElementById('set-theme')?.value || 'signal',
     color_mode:     document.getElementById('set-color-mode')?.value || '',
     dark_from:      document.getElementById('set-dark-from')?.value || '20',
     dark_to:        document.getElementById('set-dark-to')?.value || '7',

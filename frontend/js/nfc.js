@@ -66,13 +66,13 @@ function nfcOn(event, cb) {
 function _updateNfcSidebarBadge() {
   const badge = document.getElementById('nfc-sidebar-badge');
   if (!badge) return;
-  const label = badge.querySelector('.status-label');
+  const sub = document.getElementById('nfc-sidebar-sub');
   if (_nfcStatus.available) {
     badge.className = 'spoolman-status online';
-    label.textContent = 'NFC ✓';
+    if (sub) sub.textContent = 'ACR122U · prêt';
   } else {
     badge.className = 'spoolman-status offline';
-    label.textContent = 'NFC';
+    if (sub) sub.textContent = 'Non détecté';
   }
 }
 

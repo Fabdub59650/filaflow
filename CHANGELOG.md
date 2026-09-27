@@ -1,5 +1,19 @@
 # Changelog — FilaFlow
 
+## 1.1.0 — septembre 2026 — look « Atelier »
+
+- Nouvelle identité visuelle : graphite par défaut, accent orange « Signal », variante claire « béton »
+- Typographies auto-hébergées (Barlow Condensed, IBM Plex Mono, IBM Plex Sans) : aucun appel externe
+- Écran Filaments en grille de cartes : anneau dans la couleur réelle du filament, poids et longueur
+  restants, date de la dernière pesée, étiquettes Stock bas / NFC / Partielle / Archivée
+- Vue Liste (tableau) toujours disponible via le sélecteur Grille / Liste (choix mémorisé)
+- Filtres par matière en pastilles, tri Matière / Stock restant / Nom
+- Bandeau de stock bas à rayures de signalisation
+- Barre supérieure allégée : actions secondaires regroupées dans le menu « Outils »
+- État du lecteur NFC et de la dernière pesée de la balance dans la barre latérale
+- Mobile : cartes compactes et barre d'actions « Lecteur NFC » / « Pesée »
+- API : la liste des filaments renvoie la date de dernière pesée (`last_weighed_at`)
+
 ## 1.0.0 — septembre 2026
 
 Première version de FilaFlow, dérivée de PrintFlow-3D v2.9.10.

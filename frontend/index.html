@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta name="version" content="1.0.0">
-  <meta name="theme-color" content="#3b82f6">
+  <meta name="theme-color" content="#141517">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FilaFlow">
@@ -25,7 +25,7 @@
       <div class="logo-mark"></div>
       <div>
         <div class="logo-name">FilaFlow</div>
-        <div class="logo-sub">Stock filament</div>
+        <div class="logo-sub">Stock · Atelier</div>
       </div>
     </div>
     <nav class="sidebar-nav">
@@ -59,9 +59,16 @@
       </svg>
       Installer l'application
     </div>
-    <div id="nfc-sidebar-badge" class="spoolman-status offline">
-      <span class="status-dot"></span>
-      <span class="status-label">NFC</span>
+    <div class="sys-status">
+      <div id="nfc-sidebar-badge" class="spoolman-status offline">
+        <div class="status-head"><span class="status-dot"></span><span class="status-label">Lecteur NFC</span></div>
+        <div class="status-sub" id="nfc-sidebar-sub">Recherche…</div>
+      </div>
+      <div id="scale-sidebar-badge" class="spoolman-status offline">
+        <div class="status-head"><span class="status-dot"></span><span class="status-label">Balance</span></div>
+        <div class="status-sub" id="scale-sidebar-sub">—</div>
+      </div>
+      <div class="sys-version" id="sys-version"></div>
     </div>
   </aside>
 
@@ -75,7 +82,7 @@
       <button id="theme-toggle-btn" onclick="toggleDarkMode()" title="Basculer thème clair/sombre"
         style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;
                border-radius:50%;border:0.5px solid var(--border2);background:var(--bg3);
-               cursor:pointer;font-size:16px;flex-shrink:0;transition:background 0.15s">🌙</button>
+               cursor:pointer;font-size:16px;flex-shrink:0;transition:background 0.15s" aria-label="Basculer clair/sombre"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"></path></svg></button>
     </div>
     <div id="content"></div>
   </main>
@@ -89,6 +96,12 @@
 <div id="modal2-overlay" class="hidden" onclick="closeModal2()" style="z-index:1001"></div>
 <div id="modal2" class="modal hidden" style="z-index:1002"></div>
 <div id="toast-container"></div>
+
+<!-- Actions rapides mobile (écran Filaments) -->
+<div class="mobile-actions" id="mobile-actions">
+  <button type="button" class="btn" onclick="openNfcScanModal()">Lecteur NFC</button>
+  <button type="button" class="btn btn-primary" onclick="openWeighingModal()">Pesée</button>
+</div>
 
 <script>
 // Intercepteur d'erreurs global pour diagnostic

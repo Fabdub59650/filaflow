@@ -1,5 +1,5 @@
 // ── FilaFlow Service Worker ──────────────────────────────
-const CACHE_NAME    = 'filaflow-v1.0.0';
+const CACHE_NAME    = 'filaflow-v1.1.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -13,6 +13,13 @@ const STATIC_ASSETS = [
   '/js/tabs/spoolweights.js',
   '/js/tabs/settings.js',
   '/js/tabs/history.js',
+  '/fonts/barlow-condensed-latin-600-normal.woff2',
+  '/fonts/barlow-condensed-latin-700-normal.woff2',
+  '/fonts/ibm-plex-mono-latin-400-normal.woff2',
+  '/fonts/ibm-plex-mono-latin-500-normal.woff2',
+  '/fonts/ibm-plex-sans-latin-400-normal.woff2',
+  '/fonts/ibm-plex-sans-latin-500-normal.woff2',
+  '/fonts/ibm-plex-sans-latin-600-normal.woff2',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
 ];

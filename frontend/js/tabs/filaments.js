@@ -4,6 +4,7 @@ let _sortCol      = null;
 let _sortDir      = 'asc';
 let _filterQuery  = '';
 let _filterMat    = '';
+let _filView      = (function(){ try { return localStorage.getItem('ff_fil_view') || 'grid'; } catch(_) { return 'grid'; } })();
 
 // Filtres avancés filaments
 let _filAdvanced = {
@@ -45,8 +46,8 @@ function computeColWidths(visCols) {
 function sortFilaments(filaments) {
   if (!_sortCol) return filaments;
   return [...filaments].sort(function(a, b) {
-    let va = a[_sortCol] || '';
-    let vb = b[_sortCol] || '';
+    let va = _sortCol === 'pct' ? (a.weight_total > 0 ? a.weight_remaining / a.weight_total : 0) : (a[_sortCol] || '');
+    let vb = _sortCol === 'pct' ? (b.weight_total > 0 ? b.weight_remaining / b.weight_total : 0) : (b[_sortCol] || '');
     if (typeof va === 'number' || !isNaN(va)) { va = parseFloat(va)||0; vb = parseFloat(vb)||0; }
     else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
     if (va < vb) return _sortDir === 'asc' ? -1 : 1;
@@ -195,31 +196,32 @@ async function renderFilaments() {
   document.getElementById('page-title').textContent = 'Filaments';
   const activeAdv = countActiveFilAdvanced();
   document.getElementById('topbar-actions').innerHTML =
-    `<button class="btn btn-sm" onclick="openWeighingModal()" style="margin-right:4px">⚖ Pesée</button>
-     <div style="position:relative;display:inline-block;margin-right:4px">
+    `<label style="position:relative;display:inline-flex;align-items:center">
+       <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Rechercher une bobine</span>
        <input id="filament-search" type="text" placeholder="Rechercher…"
-         value="${_filterQuery}"
-         oninput="setFilamentFilter(this.value)"
-         style="padding:5px 28px 5px 10px;font-size:12px;width:160px;border-radius:var(--radius)">
-       ${_filterQuery ? '<button onclick="setFilamentFilter(\"\")" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">✕</button>' : ''}
+         value="${_filterQuery}" oninput="setFilamentFilter(this.value)"
+         style="width:220px;padding-right:28px" class="fil-search">
+       ${_filterQuery ? '<button type="button" aria-label="Effacer la recherche" onclick="setFilamentFilter(\'\')" style="position:absolute;right:6px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">✕</button>' : ''}
+     </label>
+     <button type="button" class="btn hide-sm" onclick="toggleFilAdvanced()" style="${activeAdv > 0 ? 'border-color:var(--accent);color:var(--accent)' : ''}">
+       Filtres${activeAdv > 0 ? ' · ' + activeAdv : ''}
+     </button>
+     <div style="position:relative">
+       <button type="button" class="btn" onclick="toggleFilMoreMenu(event)" aria-haspopup="true">Outils ▾</button>
+       <div id="fil-more-menu" class="drop-menu" style="display:none">
+         <button type="button" class="show-sm" onclick="closeFilMoreMenu();openFilamentForm()">Ajouter une bobine</button>
+         <button type="button" class="show-sm" onclick="closeFilMoreMenu();toggleFilAdvanced()">Filtres avancés</button>
+         <button type="button" onclick="closeFilMoreMenu();toggleShowArchived()">${showArchived ? 'Masquer les archivées' : 'Voir les archivées'}</button>
+         <button type="button" onclick="closeFilMoreMenu();openLabelEditor()">Étiquettes</button>
+         ${_filView === 'list' ? '<button type="button" onclick="closeFilMoreMenu();openColPicker()">Colonnes du tableau</button>' : ''}
+         <hr>
+         <button type="button" onclick="closeFilMoreMenu();openImportCSV()">Importer un CSV</button>
+         <button type="button" onclick="closeFilMoreMenu();exportFilamentsCSV()">Exporter en CSV</button>
+         <button type="button" onclick="closeFilMoreMenu();exportFilamentsPDF()">Exporter en PDF</button>
+       </div>
      </div>
-     <button onclick="toggleFilAdvanced()" style="display:inline-flex;align-items:center;gap:6px;
-       padding:5px 12px;font-size:12px;border-radius:var(--radius);cursor:pointer;margin-right:4px;
-       border:0.5px solid ${activeAdv > 0 ? 'var(--accent)' : 'var(--border2)'};
-       background:${activeAdv > 0 ? 'var(--accent-bg)' : 'var(--bg3)'};
-       color:${activeAdv > 0 ? 'var(--accent)' : 'var(--text2)'}">
-       🔍 Filtres${activeAdv > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700">' + activeAdv + '</span>' : ''}
-     </button>
-     <button class="btn btn-sm" id="btn-archived" onclick="toggleShowArchived()"
-       style="margin-right:4px;opacity:${showArchived?'1':'0.5'}">
-       ${showArchived ? '● Archivés visibles' : '○ Archivés masqués'}
-     </button>
-     <button class="btn btn-sm" onclick="openColPicker()" style="margin-right:4px" title="Choisir les colonnes">⚙ Colonnes</button>
-     <button class="btn btn-sm" onclick="openLabelEditor()" style="margin-right:4px" title="Générateur d'étiquettes">🏷 Étiquettes</button>
-     <button class="btn btn-sm" onclick="openImportCSV()" style="margin-right:4px" title="Importer depuis CSV">↑ CSV</button>
-     <button class="btn btn-sm" onclick="exportFilamentsCSV()" style="margin-right:4px" title="Exporter en CSV">↓ CSV</button>
-     <button class="btn btn-sm" onclick="exportFilamentsPDF()" style="margin-right:4px" title="Exporter en PDF">↓ PDF</button>
-     <button class="btn btn-primary" onclick="openFilamentForm()">+ Ajouter</button>`;
+     <button type="button" class="btn hide-sm" onclick="openFilamentForm()">+ Ajouter</button>
+     <button type="button" class="btn btn-primary hide-sm" onclick="openWeighingModal()">Pesée</button>`;
   document.getElementById('content').innerHTML = '<div style="color:var(--text3);padding:20px 0">Chargement…</div>';
   allFilaments = await API.get('/filaments' + (showArchived ? '?archived=1' : ''));
   window._allFilaments = allFilaments;
@@ -332,20 +334,151 @@ function renderLowStockBanner() {
   });
   if (!low.length) return '';
   const active = _filAdvanced.pct_max === String(threshold);
-  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;' +
-    'padding:10px 14px;margin-bottom:14px;border-radius:var(--radius);' +
-    'background:var(--warning-bg, #FEF3C7);color:var(--warning, #92400E);font-size:13px">' +
-    '<span>⚠ ' + low.length + ' bobine' + (low.length > 1 ? 's' : '') +
-    ' sous ' + threshold + ' % de stock</span>' +
-    '<button class="btn btn-sm" onclick="_filAdvanced.pct_max=' + (active ? "''" : "'" + threshold + "'") +
-    ';renderFilamentGrid()">' + (active ? 'Tout afficher' : 'Afficher') + '</button>' +
+  const names = low.slice(0, 4).map(function(f) { return escHtml(f.name); }).join(' · ') + (low.length > 4 ? ' …' : '');
+  return '<div class="hazard" role="status">' +
+    '<div class="hazard-stripes" aria-hidden="true"></div>' +
+    '<div class="hazard-body">' +
+      '<div><span class="hazard-title">' + low.length + ' bobine' + (low.length > 1 ? 's' : '') + ' sous ' + threshold + ' %</span>' +
+      '<span class="hazard-names">' + names + '</span></div>' +
+      '<button type="button" class="btn btn-sm" onclick="_filAdvanced.pct_max=' + (active ? "''" : "'" + threshold + "'") +
+      ';renderFilamentGrid()">' + (active ? 'Tout afficher' : 'Afficher') + '</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ── Vue Atelier : en-tête, filtres par matière, cartes bobines ───────────
+function escHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+function setFilView(v) {
+  _filView = v;
+  try { localStorage.setItem('ff_fil_view', v); } catch(_) {}
+  renderFilaments();
+}
+
+function setGridSort(v) {
+  _sortCol = v || null;
+  _sortDir = 'asc';
+  renderFilamentGrid();
+}
+
+function toggleFilMoreMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const m = document.getElementById('fil-more-menu');
+  if (!m) return;
+  const open = m.style.display !== 'none';
+  m.style.display = open ? 'none' : 'block';
+  if (!open) setTimeout(function() { document.addEventListener('click', closeFilMoreMenu, { once: true }); }, 0);
+}
+function closeFilMoreMenu() {
+  const m = document.getElementById('fil-more-menu');
+  if (m) m.style.display = 'none';
+}
+
+function renderFilHeader() {
+  const active = allFilaments.filter(function(f) { return !f.archived; });
+  const nfc = active.filter(function(f) { return f.nfc_uid; }).length;
+  const threshold = window._stockAlertThreshold || 20;
+  const stats = showArchived
+    ? allFilaments.length + ' bobine' + (allFilaments.length > 1 ? 's' : '') + ' archivée' + (allFilaments.length > 1 ? 's' : '')
+    : active.length + ' bobine' + (active.length > 1 ? 's' : '') + ' · ' + nfc + ' puce' + (nfc > 1 ? 's' : '') + ' NFC' +
+      (window._stockAlertEnabled ? ' · seuil d\'alerte ' + threshold + ' %' : '');
+  return '<div class="fil-head"><div><h1>' + (showArchived ? 'Archives' : 'Stock filament') + '</h1>' +
+    '<div class="fil-stats">' + stats + '</div></div></div>';
+}
+
+function renderFilToolbar() {
+  const counts = {};
+  allFilaments.forEach(function(f) { counts[f.material] = (counts[f.material] || 0) + 1; });
+  const mats = Object.keys(counts).sort();
+  const chips = '<button type="button" class="chip' + (!_filterMat ? ' active' : '') + '" onclick="_filterMat=\'\';renderFilamentGrid()">Tous · ' + allFilaments.length + '</button>' +
+    mats.map(function(m) {
+      return '<button type="button" class="chip' + (_filterMat === m ? ' active' : '') + '" onclick="setMaterialFilter(\'' + escHtml(m) + '\')">' + escHtml(m) + ' · ' + counts[m] + '</button>';
+    }).join('');
+  const sortOpts = [['', 'Matière'], ['pct', 'Stock restant ↑'], ['name', 'Nom']];
+  const sortSel = '<label>Tri <select onchange="setGridSort(this.value)" aria-label="Trier les bobines">' +
+    sortOpts.map(function(o) { return '<option value="' + o[0] + '"' + ((_sortCol || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
+    '</select></label>';
+  return '<div class="fil-toolbar">' +
+    '<div class="chip-row" role="group" aria-label="Filtrer par matière">' + chips + '</div>' +
+    '<div class="view-switch">' + sortSel +
+      '<button type="button" class="' + (_filView === 'grid' ? 'active' : '') + '" onclick="setFilView(\'grid\')">Grille</button>' +
+      '<button type="button" class="' + (_filView === 'list' ? 'active' : '') + '" onclick="setFilView(\'list\')">Liste</button>' +
+    '</div></div>';
+}
+
+function filamentMenuHtml(f) {
+  return '<div id="fmenu-' + f.id + '" class="drop-menu" style="display:none" onclick="event.stopPropagation()">' +
+    '<button type="button" onclick="closeFilamentMenu();openFilamentForm(' + f.id + ')">Modifier</button>' +
+    '<button type="button" onclick="closeFilamentMenu();openWeighingHistory(' + f.id + ')">Historique des pesées</button>' +
+    '<button type="button" onclick="closeFilamentMenu();openNfcScanModal(' + f.id + ')">Puce NFC</button>' +
+    '<button type="button" onclick="closeFilamentMenu();openFilamentQR(' + f.id + ')">QR code</button>' +
+    (!f.parent_filament_id ? '<button type="button" onclick="closeFilamentMenu();openFilamentForm(null,' + f.id + ')">Bobine partielle</button>' : '') +
+    '<button type="button" onclick="closeFilamentMenu();duplicateFilament(' + f.id + ')">Dupliquer</button>' +
+    '<hr>' +
+    '<button type="button" onclick="closeFilamentMenu();quickToggleArchive(' + f.id + ',' + (f.archived ? 1 : 0) + ')">' + (f.archived ? 'Désarchiver' : 'Archiver') + '</button>' +
+    '<button type="button" style="color:var(--danger)" onclick="closeFilamentMenu();deleteFilament(' + f.id + ')">Supprimer</button>' +
+  '</div>';
+}
+
+function fmtWeighDate(str) {
+  if (!str) return 'Aucune pesée';
+  const d = new Date(String(str).replace(' ', 'T'));
+  if (isNaN(d)) return 'Aucune pesée';
+  return 'Pesée ' + d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }).replace('/', '.') +
+    ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function spoolCardHtml(f) {
+  const threshold = window._stockAlertThreshold || 20;
+  const total = parseFloat(f.weight_total) || 0;
+  const rem   = Math.max(0, parseFloat(f.weight_remaining) || 0);
+  const p     = total > 0 ? Math.min(100, Math.round(rem / total * 100)) : 0;
+  const low   = window._stockAlertEnabled && !f.archived && total > 0 && p <= threshold;
+  const C     = 2 * Math.PI * 33;
+  const dash  = (p / 100 * C).toFixed(1) + ' ' + C.toFixed(1);
+  const color = f.color_hex || '#888888';
+  const len   = calcLength(rem, f.diameter, f.material);
+  const code  = escHtml(f.material) + ' · Ø' + (parseFloat(f.diameter) || 1.75) + (f.spool_number ? ' · #' + escHtml(f.spool_number) : '');
+  const sub   = [f.brand, f.color_name].filter(Boolean).map(escHtml).join(' · ');
+  const tags  =
+    (low ? '<span class="tag tag-low">Stock bas</span>' : '') +
+    (f.parent_filament_id ? '<span class="tag">Partielle' + (f.spool_label ? ' · ' + escHtml(f.spool_label) : '') + '</span>' : '') +
+    (f.archived ? '<span class="tag">Archivée</span>' : '') +
+    (f.nfc_uid ? '<span class="tag" title="Puce NFC : ' + escHtml(f.nfc_uid) + '">NFC</span>' : '');
+  return '<div class="spool-card' + (low ? ' low' : '') + (f.archived ? ' archived' : '') + (f.parent_filament_id ? ' partial' : '') + '"' +
+      ' tabindex="0" role="button" aria-label="Ouvrir la fiche ' + escHtml(f.name) + '"' +
+      ' onclick="openFilamentForm(' + f.id + ')" onkeydown="if(event.key===\'Enter\')openFilamentForm(' + f.id + ')">' +
+    '<div class="spool-top"><span class="spool-code">' + code + '</span><span class="spool-tags">' + tags + '</span></div>' +
+    '<div class="spool-mid">' +
+      '<svg class="spool-ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
+        '<circle cx="38" cy="38" r="33" fill="none" stroke="var(--ring-track)" stroke-width="8"></circle>' +
+        '<circle cx="38" cy="38" r="33" fill="none" stroke="' + escHtml(color) + '" stroke-width="8" stroke-dasharray="' + dash + '" transform="rotate(-90 38 38)"></circle>' +
+        '<circle cx="38" cy="38" r="37.5" fill="none" stroke="var(--ring-edge)" stroke-width="1"></circle>' +
+        '<circle cx="38" cy="38" r="28.5" fill="none" stroke="var(--ring-edge)" stroke-width="1"></circle>' +
+        '<text x="38" y="42.5" text-anchor="middle">' + p + '%</text>' +
+      '</svg>' +
+      '<div style="min-width:0"><div class="spool-name">' + escHtml(f.name) + '</div>' +
+        (sub ? '<div class="spool-brand">' + sub + '</div>' : '') + '</div>' +
+    '</div>' +
+    '<div class="spool-weight"><div><span class="w">' + Math.round(rem) + '</span> <span class="wt">/ ' + Math.round(total) + ' g</span></div>' +
+      (len ? '<span class="len">≈ ' + len + '</span>' : '') + '</div>' +
+    '<div class="spool-foot"><span class="spool-last">' + fmtWeighDate(f.last_weighed_at) + '</span>' +
+      '<span class="spool-actions" onclick="event.stopPropagation()">' +
+        '<button type="button" class="btn btn-sm" onclick="openWeighingModal(' + f.id + ')">Pesée</button>' +
+        '<button type="button" class="btn btn-sm" aria-label="Plus d\'actions" onclick="toggleFilamentMenu(' + f.id + ',this)">•••</button>' +
+        filamentMenuHtml(f) +
+      '</span></div>' +
   '</div>';
 }
 
 function renderFilamentGrid() {
   const content = document.getElementById('content');
   if (!allFilaments.length) {
-    content.innerHTML = renderFilAdvancedPanel() + '<div class="empty-state"><p>Aucun filament en stock.</p></div>';
+    content.innerHTML = renderFilHeader() + renderFilAdvancedPanel() + '<div class="empty-state"><p>' + (showArchived ? 'Aucune bobine archivée.' : 'Aucun filament en stock.') + '</p></div>';
     return;
   }
   const filtered   = filterFilaments(allFilaments);
@@ -378,12 +511,18 @@ function renderFilamentGrid() {
   }, 0);
 
   if (!totalCount) {
-    content.innerHTML = renderFilAdvancedPanel() +
+    content.innerHTML = renderFilHeader() + renderFilToolbar() + renderFilAdvancedPanel() +
       '<div class="empty-state"><p>Aucun filament ne correspond aux filtres.</p></div>';
     return;
   }
 
-  content.innerHTML = renderLowStockBanner() + renderFilAdvancedPanel() + Object.entries(grouped).map(([mat, filaments]) => `
+  if (_filView === 'grid') {
+    content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() +
+      '<div class="spool-grid">' + ordered.map(spoolCardHtml).join('') + '</div>';
+    return;
+  }
+
+  content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() + Object.entries(grouped).map(([mat, filaments]) => `
     <div class="card">
       <div class="card-header" style="cursor:pointer" onclick="setMaterialFilter('${mat}')"
            title="${_filterMat===mat ? 'Cliquer pour afficher toutes les matières' : 'Cliquer pour filtrer sur ' + mat}">
@@ -476,40 +615,7 @@ function renderFilamentGrid() {
                 <button class="btn btn-sm btn-danger" onclick="deleteFilament(${f.id})">✕</button>
                 <div style="position:relative;display:inline-block">
                   <button class="btn btn-sm" onclick="toggleFilamentMenu(${f.id},this)" title="Plus d'actions">•••</button>
-                  <div id="fmenu-${f.id}" style="display:none;position:absolute;right:0;top:100%;z-index:50;
-                    background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
-                    min-width:160px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0">
-                    <div onclick="openWeighingHistory(${f.id});closeFilamentMenu()" 
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      Historique pesées
-                    </div>
-                    <div onclick="openNfcScanModal(${f.id});closeFilamentMenu()"
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      NFC
-                    </div>
-                    <div onclick="openFilamentQR(${f.id});closeFilamentMenu()"
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      QR Code
-                    </div>
-                    ${!f.parent_filament_id ? `<div onclick="openFilamentForm(null,${f.id});closeFilamentMenu()"
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      Bobine partielle
-                    </div>` : ''}
-                    <div onclick="duplicateFilament(${f.id});closeFilamentMenu()"
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      Dupliquer
-                    </div>
-                    <div onclick="quickToggleArchive(${f.id},${f.archived?1:0});closeFilamentMenu()"
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text);border-top:1px solid var(--border);margin-top:4px"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      ${f.archived ? 'Désarchiver' : 'Archiver'}
-                    </div>
-                  </div>
+                  ${filamentMenuHtml(f)}
                 </div>
               </div></td>
             </tr>`;

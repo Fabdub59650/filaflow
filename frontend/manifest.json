@@ -4,8 +4,8 @@
   "description": "Gestion du stock de filament (pesées, NFC)",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1917",
-  "theme_color": "#3b82f6",
+  "background_color": "#141517",
+  "theme_color": "#141517",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -32,5 +32,5 @@
       "description": "Gérer les filaments"
     }
   ],
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
