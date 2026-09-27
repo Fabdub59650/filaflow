@@ -388,7 +388,14 @@ async function nfcDumpPages() {
             '<span>Bobine</span><span>' + d.diameter + ' mm · ' + d.weight + ' g</span>' +
           '</div></div>'
       : '<div style="font-size:12px;color:var(--text3);margin:8px 0">Pas de données au format ELEGOO sur cette puce.</div>';
-    if (result) result.innerHTML = decodedHtml + ffHtml +
+    // Puce ELEGOO non liée : proposer de créer la fiche pré-remplie
+    const card = _nfcStatus.lastCard;
+    const unlinked = !card || !card.filament;
+    window._lastTagRead = { decoded: d, uid: r.uid };
+    const createHtml = d.elegoo && d.material && unlinked
+      ? '<div style="margin:4px 0 8px"><button type="button" class="btn btn-primary btn-sm" onclick="createFilamentFromTag(window._lastTagRead.decoded, window._lastTagRead.uid)">＋ Créer la fiche depuis cette puce</button></div>'
+      : '';
+    if (result) result.innerHTML = decodedHtml + createHtml + ffHtml +
       '<details style="margin-top:8px">' +
         '<summary style="font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;margin-bottom:4px">Données brutes — UID ' + r.uid + ' — pages 16-24</summary>' +
         '<table style="font-size:11px;width:100%">' +

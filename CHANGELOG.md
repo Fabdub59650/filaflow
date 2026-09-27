@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.5.0 — septembre 2026 — fiche créée depuis une puce ELEGOO
+
+- Fenêtre NFC › « Lire la puce » : sur une puce ELEGOO non liée, bouton
+  « Créer la fiche depuis cette puce »
+- Fiche pré-remplie : nom (sous-type + couleur), marque ELEGOO, matière, sous-type, couleur,
+  nom de couleur approché, températures buse, diamètre, poids ; tout reste modifiable
+- À l'enregistrement, la puce est liée automatiquement à la nouvelle bobine
+
 ## 1.4.0 — septembre 2026 — pesées en temps réel
 
 - Balance connectée : dès qu'une bobine est pesée, une notification apparaît sur tous les écrans

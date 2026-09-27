@@ -740,7 +740,7 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
     <!-- Section 1 : Identité -->
     <div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Identification</div>
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:14px">
-      <div><label class="form-label">Nom *</label><input id="ff-name" value="${f.name||''}"></div>
+      <div><label class="form-label">Nom *</label><input id="ff-name" value="${escHtml(f.name||'')}">${f._nfcUid ? `<input type="hidden" id="ff-nfc-uid" value="${escHtml(f._nfcUid)}">` : ''}</div>
       <div><label class="form-label">Marque</label><input id="ff-brand" value="${f.brand||''}"></div>
       <div><label class="form-label">N° de bobine</label><input id="ff-spool-num" value="${f.spool_number||''}" placeholder="ex: SN-001"></div>
     </div>
@@ -857,6 +857,10 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
       <button class="btn" onclick="closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveFilament(${id||'null'})">Enregistrer</button>
     </div>`, id ? 'Modifier filament' : (isDuplicate ? 'Nouveau filament (copie de ' + (f.name||'') + ')' : (defaultParentId ? 'Ajouter une bobine partielle' : 'Ajouter un filament')), { wide: true });
+  if (f._nfcUid) {
+    const t = document.querySelector('#modal .modal-title');
+    if (t) t.textContent = 'Nouvelle bobine depuis la puce';
+  }
   refreshElegooSubtypes();
 }
 
@@ -935,6 +939,9 @@ async function saveFilament(id) {
     parent_filament_id: document.getElementById('ff-parent-id')?.value || null,
     spool_label:       document.getElementById('ff-spool-label')?.value || null,
   };
+  // Bobine créée depuis une puce : liaison NFC immédiate
+  const tagUid = document.getElementById('ff-nfc-uid')?.value;
+  if (!id && tagUid) body.nfc_uid = tagUid;
   if (!body.name) return toast('Le nom est requis', 'error');
   const tot = parseFloat(body.weight_total) || 0;
   const rem = parseFloat(body.weight_remaining) || 0;
@@ -943,7 +950,7 @@ async function saveFilament(id) {
     if (id) await API.put('/filaments/'+id, body);
     else    await API.post('/filaments', body);
     closeModal();
-    toast(id ? 'Filament mis à jour' : 'Filament ajouté', 'success');
+    toast(id ? 'Filament mis à jour' : (tagUid ? 'Bobine ajoutée et liée à la puce' : 'Filament ajouté'), 'success');
     renderFilaments();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -2041,3 +2048,57 @@ nfcOn('weighing', onLiveWeighing);
 nfcOn('weighing_unknown', function(d) {
   toast('Balance : puce inconnue (UID ' + d.uid + ') — ' + fmtGrams(d.gross) + ' brut. Liez-la à une bobine pour enregistrer la pesée.', 'error');
 });
+
+
+// ── Création d'une fiche à partir d'une puce ELEGOO ──────────────────────
+// Nom de couleur approximatif à partir du code hexadécimal (pré-remplissage)
+function guessColorName(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return '';
+  const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (l < 0.13) return 'Noir';
+  if (l > 0.9 && s < 0.35) return 'Blanc';
+  if (s < 0.15) return 'Gris';
+  let hue = 0;
+  if (d) {
+    if (max === r) hue = 60 * (((g - b) / d) % 6);
+    else if (max === g) hue = 60 * ((b - r) / d + 2);
+    else hue = 60 * ((r - g) / d + 4);
+  }
+  if (hue < 0) hue += 360;
+  if (hue < 15 || hue >= 345) return l > 0.7 ? 'Rose' : 'Rouge';
+  if (hue < 40) return l < 0.42 ? 'Marron' : 'Orange';
+  if (hue < 65) return l > 0.75 ? 'Beige' : 'Jaune';
+  if (hue < 165) return 'Vert';
+  if (hue < 195) return 'Turquoise';
+  if (hue < 255) return 'Bleu';
+  if (hue < 290) return 'Violet';
+  return 'Rose';
+}
+
+function createFilamentFromTag(d, uid) {
+  const known = ['PLA','PETG','ABS','ASA','TPU','Nylon','PC','HIPS','PVA','CPE','BVOH','EVA','PP','PPA','PPS'];
+  const material = d.material === 'PA' ? 'Nylon' : (known.indexOf(d.material) >= 0 ? d.material : 'autre');
+  const colorName = guessColorName(d.color_hex);
+  const base = d.subtype || d.material || 'Filament';
+  const src = {
+    name: base + (colorName ? ' ' + colorName : ''),
+    brand: 'ELEGOO',
+    material: material,
+    elegoo_subtype: d.subtype && d.subtype !== d.material ? d.subtype : null,
+    color_hex: d.color_hex,
+    color_name: colorName,
+    diameter: d.diameter || 1.75,
+    temp_nozzle_min: d.temp_nozzle_min || null,
+    temp_nozzle_max: d.temp_nozzle_max || null,
+    weight_total: d.weight || 1000,
+    weight_remaining: d.weight || 1000,
+    _nfcUid: uid,
+  };
+  _scanModalActive = false;
+  closeModal();
+  const open = function() { openFilamentForm(null, null, src); };
+  if (currentTab !== 'filaments') { switchTab('filaments'); setTimeout(open, 600); } else open();
+}
