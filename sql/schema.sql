@@ -97,28 +97,34 @@ CREATE TABLE IF NOT EXISTS `settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Poids de référence des bobines vides ───────────────────
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (1,'Bambu Lab','Standard AMS','250.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (2,'Bambu Lab','Lite','180.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (3,'Bambu Lab','Matte','250.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (4,'Elegoo','Standard','220.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (5,'Elegoo','Rapid','195.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (6,'Polymaker','PolyTerra','200.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (7,'Polymaker','PolyLite','210.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (8,'Prusament','Standard','201.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (9,'Sunlu','Standard','210.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (10,'Sunlu','S-Eco','190.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (11,'Hatchbox','Standard','227.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (12,'eSUN','Standard','230.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (13,'eSUN','Refill','80.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (14,'Fiberlogy','Standard','205.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (15,'Extrudr','Standard','215.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (16,'Fillamentum','Standard','220.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (17,'FormFutura','Standard','210.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (18,'Raise3D','Standard','230.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (19,'ColorFabb','Standard','215.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (20,'Generic','Carton','150.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (21,'Generic','Plastique leger','180.00','1000','1.75',NULL);
-INSERT IGNORE INTO `spool_weights` (id, brand, model, weight_g, spool_size_g, diameter_mm, notes) VALUES (22,'Generic','Plastique lourd','250.00','1000','1.75',NULL);
+-- Insérés uniquement si la table est vide (première installation) :
+-- ne réintroduit jamais des références supprimées volontairement.
+INSERT INTO `spool_weights` (brand, model, weight_g, spool_size_g, diameter_mm, notes)
+SELECT * FROM (
+  SELECT 'Bambu Lab','Standard AMS','250.00','1000','1.75',NULL
+  UNION ALL SELECT 'Bambu Lab','Lite','180.00','1000','1.75',NULL
+  UNION ALL SELECT 'Bambu Lab','Matte','250.00','1000','1.75',NULL
+  UNION ALL SELECT 'Elegoo','Standard','220.00','1000','1.75',NULL
+  UNION ALL SELECT 'Elegoo','Rapid','195.00','1000','1.75',NULL
+  UNION ALL SELECT 'Polymaker','PolyTerra','200.00','1000','1.75',NULL
+  UNION ALL SELECT 'Polymaker','PolyLite','210.00','1000','1.75',NULL
+  UNION ALL SELECT 'Prusament','Standard','201.00','1000','1.75',NULL
+  UNION ALL SELECT 'Sunlu','Standard','210.00','1000','1.75',NULL
+  UNION ALL SELECT 'Sunlu','S-Eco','190.00','1000','1.75',NULL
+  UNION ALL SELECT 'Hatchbox','Standard','227.00','1000','1.75',NULL
+  UNION ALL SELECT 'eSUN','Standard','230.00','1000','1.75',NULL
+  UNION ALL SELECT 'eSUN','Refill','80.00','1000','1.75',NULL
+  UNION ALL SELECT 'Fiberlogy','Standard','205.00','1000','1.75',NULL
+  UNION ALL SELECT 'Extrudr','Standard','215.00','1000','1.75',NULL
+  UNION ALL SELECT 'Fillamentum','Standard','220.00','1000','1.75',NULL
+  UNION ALL SELECT 'FormFutura','Standard','210.00','1000','1.75',NULL
+  UNION ALL SELECT 'Raise3D','Standard','230.00','1000','1.75',NULL
+  UNION ALL SELECT 'ColorFabb','Standard','215.00','1000','1.75',NULL
+  UNION ALL SELECT 'Generic','Carton','150.00','1000','1.75',NULL
+  UNION ALL SELECT 'Generic','Plastique leger','180.00','1000','1.75',NULL
+  UNION ALL SELECT 'Generic','Plastique lourd','250.00','1000','1.75',NULL
+) AS defaults
+WHERE NOT EXISTS (SELECT 1 FROM `spool_weights`);
 
 -- ── Réglages par défaut ────────────────────────────────────
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('accent_color','#185FA5');

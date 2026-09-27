@@ -19,6 +19,8 @@ Première version de FilaFlow, dérivée de PrintFlow-3D v2.9.10.
   lui-même restent exemptées.
 - Balance : webhook exempté de l'authentification de l'interface, avec jeton optionnel
   (`?token=…` ou en-tête `X-Webhook-Token`) configurable dans Paramètres → Balance
+- Poids de bobines de référence par défaut insérés uniquement à la première installation
+- Service systemd : limite de redémarrages placée dans la section [Unit]
 - Connexion : rechargement automatique après login, jeton envoyé aussi sur les
   téléchargements et restaurations
 
