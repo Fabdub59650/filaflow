@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.3.1 — septembre 2026
+
+- Fenêtre NFC : le bouton « Dump » devient « Lire la puce » et reste disponible dans tous les cas —
+  puce liée, puce inconnue (ex. bobine ELEGOO d'origine) et juste après une écriture ELEGOO
+- Lecture unifiée : format ELEGOO décodé et format FilaFlow (remplace l'ancien bouton « Lire les données »),
+  données brutes des pages 16-24 dans un bloc repliable
+
 ## 1.3.0 — septembre 2026 — format ELEGOO complet
 
 Tables reprises de github.com/Savion/elegoo-rfid-editor, croisées avec github.com/DnG-Crafts/ELG-RFID.

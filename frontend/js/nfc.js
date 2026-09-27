@@ -272,16 +272,17 @@ function _updateScanModal(data, prefillFilamentId) {
       '<button class="btn btn-sm btn-primary" onclick="_scanModalActive=false;closeModal();openWeighingModal(' + f.id + ')">⚖ Peser</button>' +
       '<button class="btn btn-sm" onclick="nfcWriteToCard(' + f.id + ')">✍ Écrire FilaFlow</button>' +
       '<button class="btn btn-sm" onclick="nfcWriteElegoo(' + f.id + ')" style="background:var(--accent-bg);color:var(--accent);font-weight:500">◈ Écrire ELEGOO</button>' +
-      '<button class="btn btn-sm" onclick="nfcDumpPages()" title="Lire les bytes bruts pages 16-24">🔍 Dump</button>' +
+      '<button class="btn btn-sm" onclick="nfcDumpPages()" title="Lire le contenu réel de la puce : format ELEGOO et format FilaFlow">🔍 Lire la puce</button>' +
       '<button class="btn btn-sm btn-danger" onclick="nfcUnlinkFilament(' + f.id + ')">Délier</button>';
   } else {
     status.textContent = 'Puce inconnue — non liée';
     result.style.display = 'none';
     actions.innerHTML = fid
       ? `<button class="btn btn-sm btn-primary" onclick="nfcLinkToFilament(${fid})">Lier à ce filament</button>
-         <button class="btn btn-sm" onclick="openNfcLinkPicker()">Lier à un autre filament</button>`
+         <button class="btn btn-sm" onclick="openNfcLinkPicker()">Lier à un autre filament</button>
+         <button class="btn btn-sm" onclick="nfcDumpPages()">🔍 Lire la puce</button>`
       : `<button class="btn btn-sm btn-primary" onclick="openNfcLinkPicker()">Lier à un filament</button>
-         <button class="btn btn-sm" onclick="nfcReadCurrentCard()">Lire les données</button>`;
+         <button class="btn btn-sm" onclick="nfcDumpPages()">🔍 Lire la puce</button>`;
   }
 }
 
@@ -338,9 +339,22 @@ function nfcWaitForFilament(callback) {
 
 async function nfcDumpPages() {
   const result = document.getElementById('nfc-scan-result');
-  if (result) result.innerHTML = '<span style="color:var(--text3);font-size:13px">Lecture en cours…</span>';
+  if (result) {
+    result.style.display = 'block';
+    result.innerHTML = '<span style="color:var(--text3);font-size:13px">Lecture de la puce…</span>';
+  }
   try {
-    const r = await API.get('/nfc/dump');
+    const [r, ff] = await Promise.all([
+      API.get('/nfc/dump'),
+      API.get('/nfc/read').catch(() => null),
+    ]);
+    const ffHtml = ff && ff.data
+      ? '<div class="card" style="padding:12px 14px;margin:8px 0">' +
+          '<div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;color:var(--text3);margin-bottom:6px">FORMAT FILAFLOW</div>' +
+          '<div style="font-size:13px"><strong>' + (ff.data.name || '—') + '</strong> · ' + (ff.data.material || '—') +
+            (ff.data.brand ? ' · ' + ff.data.brand : '') + (ff.data.weight ? ' · ' + ff.data.weight + ' g' : '') + '</div>' +
+        '</div>'
+      : '';
     const rows = r.pages.map(p => {
       const ascii = p.bytes.map(b => b >= 32 && b < 127 ? String.fromCharCode(b) : '.').join('');
       return '<tr>' +
@@ -352,6 +366,7 @@ async function nfcDumpPages() {
     const d = r.decoded || {};
     const decodedHtml = d.elegoo
       ? '<div class="card" style="padding:12px 14px;margin:8px 0">' +
+          '<div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;color:var(--text3);margin-bottom:6px">FORMAT ELEGOO</div>' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
             '<span class="filament-dot" style="background:' + d.color_hex + ';width:16px;height:16px"></span>' +
             '<strong>' + (d.subtype || d.material || 'Inconnu') + '</strong>' +
@@ -365,14 +380,14 @@ async function nfcDumpPages() {
             '<span>Bobine</span><span>' + d.diameter + ' mm · ' + d.weight + ' g</span>' +
           '</div></div>'
       : '<div style="font-size:12px;color:var(--text3);margin:8px 0">Pas de données au format ELEGOO sur cette puce.</div>';
-    if (result) result.innerHTML = decodedHtml +
-      '<div style="margin-top:8px">' +
-        '<div style="font-size:11px;font-weight:500;color:var(--text3);margin-bottom:4px">UID: ' + r.uid + ' — Pages 16-24 :</div>' +
+    if (result) result.innerHTML = decodedHtml + ffHtml +
+      '<details style="margin-top:8px">' +
+        '<summary style="font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;margin-bottom:4px">Données brutes — UID ' + r.uid + ' — pages 16-24</summary>' +
         '<table style="font-size:11px;width:100%">' +
           '<thead><tr><th style="text-align:left">Page</th><th style="text-align:left">Hex</th><th style="text-align:left">ASCII</th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
         '</table>' +
-      '</div>';
+      '</details>';
   } catch(e) {
     if (result) result.innerHTML = '<span style="color:var(--danger);font-size:13px">Erreur : ' + e.message + '</span>';
   }
@@ -418,7 +433,10 @@ async function nfcWriteElegoo(filamentId) {
         '<button class="btn btn-sm btn-primary" onclick="_scanModalActive=false;closeModal();openWeighingModal(' + f.id + ')">⚖ Peser</button>' +
         '<button class="btn btn-sm" onclick="nfcWriteToCard(' + f.id + ')">✍ Écrire FilaFlow</button>' +
         '<button class="btn btn-sm" onclick="nfcWriteElegoo(' + f.id + ')" style="background:var(--accent-bg);color:var(--accent);font-weight:500">◈ Écrire ELEGOO</button>' +
+        '<button class="btn btn-sm" onclick="nfcDumpPages()" title="Lire le contenu réel de la puce : format ELEGOO et format FilaFlow">🔍 Lire la puce</button>' +
         '<button class="btn btn-sm btn-danger" onclick="nfcUnlinkFilament(' + f.id + ')">Délier</button>';
+    } else if (actions) {
+      actions.innerHTML = '<button class="btn btn-sm" onclick="nfcDumpPages()" title="Lire le contenu réel de la puce : format ELEGOO et format FilaFlow">🔍 Lire la puce</button>';
     }
   } catch (e) {
     toast('Erreur écriture ELEGOO : ' + e.message, 'error');
