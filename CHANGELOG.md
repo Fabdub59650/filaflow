@@ -1,5 +1,15 @@
 # Changelog — FilaFlow
 
+## 1.6.1 — septembre 2026
+
+- Correction : une puce inconnue posée sur le lecteur NFC ne déclenchait rien si la fenêtre NFC
+  n'était pas déjà ouverte. Une notification « Puce inconnue — non liée » s'affiche désormais,
+  avec « Lire la puce » (lecture et création de fiche ELEGOO) et « Lier à une bobine »
+- Balance : la notification de puce inconnue propose « Nouvelle fiche » (liée à la puce)
+  et « Lier à une bobine », au lieu d'un simple message
+- Notification « bobine détectée » (puce connue) harmonisée avec le style Atelier
+- Sélecteur de liaison : les bobines sans puce sont listées en premier
+
 ## 1.6.0 — septembre 2026 — suggestions de saisie
 
 - Fiche filament : les champs « Nom couleur » et « Marque » proposent les valeurs déjà utilisées

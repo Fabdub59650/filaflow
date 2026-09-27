@@ -138,43 +138,72 @@ function _handleCardDetected(data) {
   // Si un filament connu → proposer la pesée
   if (data.filament) {
     _showQuickScanToast(data.filament);
+  } else if (data.uid) {
+    _showUnknownCardToast(data);
   }
 }
 
+// ── Notification d'action (style Atelier), persistante jusqu'au choix ────
+function showActionToast(opts) {
+  const container = document.getElementById('toast-container') || document.body;
+  if (opts.key) document.querySelectorAll('.toast-action[data-key="' + opts.key + '"]').forEach(el => el.remove());
+  const el = document.createElement('div');
+  el.className = 'toast toast-weigh toast-action';
+  if (opts.key) el.dataset.key = opts.key;
+  el.setAttribute('role', 'alertdialog');
+  el.innerHTML =
+    (opts.swatch ? '<span class="tw-swatch" style="background:' + opts.swatch + '"></span>' : '<span class="tw-icon" aria-hidden="true">📡</span>') +
+    '<span class="tw-body">' +
+      '<span class="tw-label">' + opts.label + '</span>' +
+      '<span class="tw-name">' + opts.title + '</span>' +
+      (opts.sub ? '<span class="tw-delta">' + opts.sub + '</span>' : '') +
+      '<span class="tw-actions"></span>' +
+    '</span>';
+  const bar = el.querySelector('.tw-actions');
+  (opts.actions || []).concat([{ text: 'Ignorer' }]).forEach(a => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-sm' + (a.primary ? ' btn-primary' : '');
+    b.textContent = a.text;
+    b.onclick = ev => { ev.stopPropagation(); el.remove(); if (a.run) a.run(); };
+    bar.appendChild(b);
+  });
+  container.appendChild(el);
+  setTimeout(() => { try { el.remove(); } catch (_) {} }, opts.timeout || 60000);
+  return el;
+}
+
+// Puce posée sur le lecteur ACR122U, liée à aucune bobine
+function _showUnknownCardToast(data) {
+  showActionToast({
+    key: 'unknown-' + data.uid,
+    label: 'Lecteur NFC',
+    title: 'Puce inconnue — non liée',
+    sub: 'UID ' + data.uid,
+    actions: [
+      { text: 'Lire la puce', primary: true, run: async () => {
+          await openNfcScanModal();
+          _updateScanModal(data, null);
+          nfcDumpPages();
+        } },
+      { text: 'Lier à une bobine', run: () => openNfcLinkPicker() },
+    ],
+  });
+}
+
 function _showQuickScanToast(filament) {
-  // Toast persistant avec actions
-  const toastId = 'nfc-toast-' + Date.now();
-  const div = document.createElement('div');
-  div.id    = toastId;
-  div.style.cssText = `position:fixed;bottom:80px;right:20px;z-index:9999;
-    background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);
-    padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:260px;
-    animation:slideIn 0.2s ease`;
-  div.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <span style="font-size:18px">📡</span>
-      <div>
-        <div style="font-size:13px;font-weight:500">${filament.name}</div>
-        <div style="font-size:11px;color:var(--text3)">${filament.material} · ${Math.round(filament.weight_remaining)}g restants</div>
-      </div>
-      <button onclick="document.getElementById('${toastId}').remove()"
-              style="margin-left:auto;background:none;border:none;cursor:pointer;
-                     color:var(--text3);font-size:16px">✕</button>
-    </div>
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-sm btn-primary" onclick="openWeighingModal(${filament.id});document.getElementById('${toastId}').remove()">
-        ⚖ Peser
-      </button>
-      <button class="btn btn-sm" onclick="nfcGoToFilament(${filament.id});document.getElementById('${toastId}').remove()">
-        Voir la fiche
-      </button>
-      <button class="btn btn-sm" onclick="document.getElementById('${toastId}').remove()">
-        Ignorer
-      </button>
-    </div>`;
-  document.body.appendChild(div);
-  // Auto-fermeture après 10s
-  setTimeout(() => { if (document.getElementById(toastId)) div.remove(); }, 10000);
+  showActionToast({
+    key: 'known-' + filament.id,
+    label: 'Lecteur NFC',
+    swatch: filament.color_hex || '#888',
+    title: filament.name,
+    sub: filament.material + ' · ' + Math.round(filament.weight_remaining) + ' g restants',
+    timeout: 20000,
+    actions: [
+      { text: 'Peser', primary: true, run: () => openWeighingModal(filament.id) },
+      { text: 'Voir la fiche', run: () => nfcGoToFilament(filament.id) },
+    ],
+  });
 }
 
 // ── Modal de scan rapide ──────────────────────────────────
@@ -482,10 +511,12 @@ async function nfcReadCurrentCard() {
   } catch (e) { toast('Erreur lecture : ' + e.message, 'error'); }
 }
 
-async function openNfcLinkPicker() {
+async function openNfcLinkPicker(uidOverride = null) {
   const filaments = await API.get('/filaments');
-  const uid = _nfcStatus.lastCard?.uid;
+  const uid = uidOverride || _nfcStatus.lastCard?.uid;
   if (!uid) { toast('Aucune puce détectée', 'error'); return; }
+  window._nfcPickerUid = uidOverride;   // puce vue par la balance (pas sur le lecteur)
+  filaments.sort((a, b) => (a.nfc_uid ? 1 : 0) - (b.nfc_uid ? 1 : 0) || a.name.localeCompare(b.name, 'fr'));
 
   openModal(`
     <div style="margin-bottom:14px;font-size:13px;color:var(--text2)">
@@ -495,11 +526,11 @@ async function openNfcLinkPicker() {
     <div class="form-group">
       <select id="nfc-link-filament">
         <option value="">— Sélectionner —</option>
-        ${filaments.map(f => `<option value="${f.id}">${f.name} · ${f.material} · ${Math.round(f.weight_remaining)}g</option>`).join('')}
+        ${filaments.map(f => `<option value="${f.id}">${f.name} · ${f.material} · ${Math.round(f.weight_remaining)}g${f.nfc_uid ? ' · déjà liée' : ''}</option>`).join('')}
       </select>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="openNfcScanModal()">Retour</button>
+      <button class="btn" onclick="${uidOverride ? 'closeModal()' : 'openNfcScanModal()'}">${uidOverride ? 'Annuler' : 'Retour'}</button>
       <button class="btn btn-primary" onclick="nfcLinkFromPicker()">Lier</button>
     </div>
   `, 'Lier la puce à un filament');
@@ -508,6 +539,16 @@ async function openNfcLinkPicker() {
 async function nfcLinkFromPicker() {
   const id = document.getElementById('nfc-link-filament').value;
   if (!id) return toast('Sélectionnez un filament', 'error');
+  if (window._nfcPickerUid) {
+    try {
+      const r = await API.post('/nfc/link', { filament_id: parseInt(id), uid: window._nfcPickerUid });
+      window._nfcPickerUid = null;
+      closeModal();
+      toast('Puce liée à ' + r.filament.name + ' — reposez la bobine sur la balance', 'success');
+      if (typeof renderFilaments === 'function' && currentTab === 'filaments') renderFilaments();
+    } catch (e) { toast(e.message, 'error'); }
+    return;
+  }
   await nfcLinkToFilament(parseInt(id));
 }
 

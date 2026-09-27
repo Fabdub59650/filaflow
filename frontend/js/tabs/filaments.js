@@ -2052,7 +2052,16 @@ function onLiveWeighing(d) {
 
 nfcOn('weighing', onLiveWeighing);
 nfcOn('weighing_unknown', function(d) {
-  toast('Balance : puce inconnue (UID ' + d.uid + ') — ' + fmtGrams(d.gross) + ' brut. Liez-la à une bobine pour enregistrer la pesée.', 'error');
+  showActionToast({
+    key: 'scale-unknown-' + d.uid,
+    label: 'Balance',
+    title: 'Puce inconnue — non liée',
+    sub: 'UID ' + d.uid + ' · ' + fmtGrams(d.gross) + ' brut. Pour une bobine ELEGOO, posez-la sur le lecteur NFC : la fiche sera pré-remplie.',
+    actions: [
+      { text: 'Nouvelle fiche', primary: true, run: function() { openFilamentForm(null, null, { _nfcUid: d.uid, weight_total: 1000, weight_remaining: 1000 }); } },
+      { text: 'Lier à une bobine', run: function() { openNfcLinkPicker(d.uid); } },
+    ],
+  });
 });
 
 
