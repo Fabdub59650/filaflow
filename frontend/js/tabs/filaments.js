@@ -229,7 +229,8 @@ function applyColPicker() {
 // Densités g/cm³ par matière pour calcul de longueur
 const MATERIAL_DENSITY = {
   PLA: 1.24, PETG: 1.27, ABS: 1.04, ASA: 1.07, TPU: 1.21,
-  Nylon: 1.14, PC: 1.20, HIPS: 1.04, PVA: 1.19, autre: 1.24
+  Nylon: 1.14, PC: 1.20, HIPS: 1.04, PVA: 1.19, CPE: 1.25, BVOH: 1.14,
+  EVA: 0.93, PP: 0.90, PPA: 1.17, PPS: 1.35, autre: 1.24
 };
 
 function calcLength(weightG, diameterMm, material) {
@@ -748,27 +749,16 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
     <div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Matière & couleur</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div><label class="form-label">Matière</label>
-        <select id="ff-mat">
-          ${['PLA','PETG','ABS','ASA','TPU','Nylon','PC','HIPS','PVA','autre'].map(m =>
+        <select id="ff-mat" onchange="refreshElegooSubtypes()">
+          ${['PLA','PETG','ABS','ASA','TPU','Nylon','PC','HIPS','PVA','CPE','BVOH','EVA','PP','PPA','PPS','autre'].map(m =>
             `<option ${(f.material||'PLA')==m?'selected':''}>${m}</option>`).join('')}
         </select>
       </div>
       <div><label class="form-label">Sous-type ELEGOO</label>
-        <select id="ff-elegoo-subtype">
+        <select id="ff-elegoo-subtype" data-current="${escHtml(f.elegoo_subtype || '')}" onchange="updateElegooHint()">
           <option value="">Standard</option>
-          <optgroup label="Renforcé">
-            ${['CF','GF','PLA-CF','PETG-CF','ABS-CF','PA-CF','PETG-GF','PA-GF'].map(s =>
-              `<option value="${s}" ${(f.elegoo_subtype||'')==s?'selected':''}>${s}</option>`).join('')}
-          </optgroup>
-          <optgroup label="Variantes PLA">
-            ${['PLA+','Silk','Matte','Rapid'].map(s =>
-              `<option value="${s}" ${(f.elegoo_subtype||'')==s?'selected':''}>${s}</option>`).join('')}
-          </optgroup>
-          <optgroup label="TPU">
-            ${['TPU 95A','TPU 87A'].map(s =>
-              `<option value="${s}" ${(f.elegoo_subtype||'')==s?'selected':''}>${s}</option>`).join('')}
-          </optgroup>
         </select>
+        <div id="ff-elegoo-hint" style="font-size:11px;color:var(--text3);margin-top:4px;min-height:14px"></div>
       </div>
       <div><label class="form-label">Finition</label>
         <select id="ff-finish">
@@ -867,6 +857,39 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
       <button class="btn" onclick="closeModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveFilament(${id||'null'})">Enregistrer</button>
     </div>`, id ? 'Modifier filament' : (isDuplicate ? 'Nouveau filament (copie de ' + (f.name||'') + ')' : (defaultParentId ? 'Ajouter une bobine partielle' : 'Ajouter un filament')), { wide: true });
+  refreshElegooSubtypes();
+}
+
+// ── Sous-types ELEGOO dépendant de la matière (source : backend/elegoo.js) ──
+async function refreshElegooSubtypes() {
+  const sel = document.getElementById('ff-elegoo-subtype');
+  const mat = document.getElementById('ff-mat');
+  if (!sel || !mat) return;
+  if (!window._elegooSubtypes) {
+    try { window._elegooSubtypes = await API.get('/nfc/elegoo-subtypes'); }
+    catch (_) { window._elegooSubtypes = null; }
+  }
+  const keep = sel.value || sel.dataset.current || '';
+  const list = (window._elegooSubtypes || {})[mat.value] || [];
+  sel.innerHTML = '<option value="">Standard' + (mat.value === 'autre' ? '' : ' (' + (mat.value === 'Nylon' ? 'PA' : mat.value) + ')') + '</option>' +
+    list.map(function(s) {
+      return '<option value="' + escHtml(s.name) + '"' + (s.name === keep ? ' selected' : '') + '>' +
+        escHtml(s.name) + (s.hidden ? ' — non affiché CC2' : '') + '</option>';
+    }).join('');
+  sel.dataset.current = list.some(function(s) { return s.name === keep; }) ? keep : '';
+  updateElegooHint();
+}
+
+function updateElegooHint() {
+  const sel  = document.getElementById('ff-elegoo-subtype');
+  const mat  = document.getElementById('ff-mat');
+  const hint = document.getElementById('ff-elegoo-hint');
+  if (!sel || !mat || !hint) return;
+  const list = (window._elegooSubtypes || {})[mat.value] || [];
+  const cur  = list.find(function(s) { return s.name === sel.value; });
+  hint.textContent = mat.value === 'autre'
+    ? 'Pas d\'équivalent ELEGOO : la puce sera codée en PLA.'
+    : cur && cur.hidden ? 'Écrit sur la puce, mais la Centauri Carbon 2 ne l\'affiche pas.' : '';
 }
 
 function validateWeights() {

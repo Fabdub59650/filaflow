@@ -1,5 +1,24 @@
 # Changelog — FilaFlow
 
+## 1.3.0 — septembre 2026 — format ELEGOO complet
+
+Tables reprises de github.com/Savion/elegoo-rfid-editor, croisées avec github.com/DnG-Crafts/ELG-RFID.
+
+- 15 matières ELEGOO (ajout de CPE, BVOH, EVA, PP, PPA, PPS ; HIPS a désormais son vrai code
+  au lieu d'être codé en ABS) et 50 sous-types officiels
+- Fiche filament : liste des sous-types filtrée selon la matière, avec la mention
+  « non affiché CC2 » pour les sous-types écrits sur la puce mais ignorés par l'imprimante
+- Correction : températures buse ≥ 256 °C (ASA, PC, PA…) mal encodées
+  (ex. 260 °C écrit comme 4 °C) — désormais 2 × 16 bits big-endian
+- Correction : une bobine non-PLA sans sous-type était codée avec le sous-type PLA
+  (0x0000) ; elle reçoit maintenant la variante standard de sa famille (PETG → 0x0100…)
+- Correction : sous-types estimés erronés (PA-CF, ASA-CF, ABS-CF, TPU 87A…) remplacés par les codes officiels
+- Page 22 laissée à zéro comme sur les puces d'origine (au lieu de températures plateau supposées)
+- Contrôle de cohérence matière / sous-type à l'écriture, avec avertissements affichés
+- Dump NFC : décodage lisible d'une puce ELEGOO (matière, sous-type, couleur, températures, poids)
+- Migration automatique des anciens libellés de sous-types vers les noms officiels
+- Code de l'encodage regroupé dans `backend/elegoo.js`
+
 ## 1.2.0 — septembre 2026 — regroupement par couleur
 
 - Écran Filaments : nouveau sélecteur « Regrouper » (Aucun / Matière / Couleur), en vue Grille

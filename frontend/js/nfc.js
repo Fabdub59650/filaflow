@@ -349,7 +349,23 @@ async function nfcDumpPages() {
         '<td style="font-family:monospace;font-size:11px;color:var(--text3)">' + ascii + '</td>' +
         '</tr>';
     }).join('');
-    if (result) result.innerHTML =
+    const d = r.decoded || {};
+    const decodedHtml = d.elegoo
+      ? '<div class="card" style="padding:12px 14px;margin:8px 0">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+            '<span class="filament-dot" style="background:' + d.color_hex + ';width:16px;height:16px"></span>' +
+            '<strong>' + (d.subtype || d.material || 'Inconnu') + '</strong>' +
+            (d.subtype_hidden ? '<span class="tag">non affiché CC2</span>' : '') +
+          '</div>' +
+          '<div style="font-family:var(--font-mono);font-size:12px;color:var(--text2);display:grid;grid-template-columns:auto 1fr;gap:2px 14px">' +
+            '<span>Matière</span><span>' + (d.material || '? ' + d.material_code) + '</span>' +
+            '<span>Sous-type</span><span>' + (d.subtype || '? ' + d.subtype_code) + '</span>' +
+            '<span>Couleur</span><span>' + d.color_hex.toUpperCase() + '</span>' +
+            '<span>Buse</span><span>' + d.temp_nozzle_min + ' – ' + d.temp_nozzle_max + ' °C</span>' +
+            '<span>Bobine</span><span>' + d.diameter + ' mm · ' + d.weight + ' g</span>' +
+          '</div></div>'
+      : '<div style="font-size:12px;color:var(--text3);margin:8px 0">Pas de données au format ELEGOO sur cette puce.</div>';
+    if (result) result.innerHTML = decodedHtml +
       '<div style="margin-top:8px">' +
         '<div style="font-size:11px;font-weight:500;color:var(--text3);margin-bottom:4px">UID: ' + r.uid + ' — Pages 16-24 :</div>' +
         '<table style="font-size:11px;width:100%">' +
@@ -380,8 +396,9 @@ async function nfcWriteElegoo(filamentId) {
             ✓ Format ELEGOO écrit — ${r.pages_written} pages
           </div>
           <div style="font-size:11px;color:var(--text2)">
-            La bobine est maintenant reconnue par la Centauri Carbon 2 Combo.
+            ${r.resolved ? 'Codée en ' + r.resolved.subtype + '. ' : ''}La bobine est maintenant reconnue par la Centauri Carbon 2 Combo.
           </div>
+          ${(r.warnings || []).map(w => '<div style="font-size:11px;color:var(--warning);margin-top:4px">⚠ ' + w + '</div>').join('')}
           <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
             ${r.details.map(d =>
               '<span style="font-size:10px;padding:2px 6px;border-radius:4px;' +

@@ -123,155 +123,17 @@ function encodeNdefText(text) {
   return tlv;
 }
 
-// ── Encodeur format ELEGOO (Centauri Carbon 2) ───────────
-// Source : https://github.com/DnG-Crafts/ELG-RFID
-// Pages 4-15 : URI (optionnel, compatibilité smartphone)
-// Pages 16-24 : données filament lues par l'imprimante
-
-// ── Tables codes matière ELEGOO officiels ────────────────
-// Source officielle : https://github.com/ELEGOO-3D/ELEGOO-RFID-Tag-Guide
-//
-// Page 18 = 4 bytes du code matière directement (big-endian 32 bits)
-// Page 19 = sous-type encodé ASCII 4 bytes, paddé 0x00
-
-// Codes matière officiels ELEGOO — 4 bytes sur page 18
-const ELEGOO_MATERIAL = {
-  'PLA':   [0x00, 0x80, 0x76, 0x65],  // 0x00807665
-  'PETG':  [0x80, 0x69, 0x84, 0x71],  // 0x80698471
-  'ABS':   [0x00, 0x65, 0x66, 0x83],  // 0x00656683
-  'ASA':   [0x00, 0x65, 0x83, 0x65],  // 0x00658365
-  'TPU':   [0x00, 0x84, 0x80, 0x85],  // 0x00848085
-  'Nylon': [0x00, 0x00, 0x80, 0x65],  // 0x00008065 (PA)
-  'PC':    [0x00, 0x00, 0x80, 0x67],  // 0x00008067
-  'PVA':   [0x00, 0x80, 0x86, 0x65],  // 0x00808665
-  'HIPS':  [0x00, 0x65, 0x66, 0x83],  // pas de code officiel → ABS
-  'autre': [0x00, 0x80, 0x76, 0x65],  // fallback PLA
-};
-
-// Sous-types ELEGOO — codes numériques page 19
-// VÉRIFIÉS sur puces originales ELEGOO :
-//   PLA standard : [0x00, 0x00, 0x00, 0x00]
-//   PLA+         : [0x00, 0x01, 0x00, 0x00]
-//   PLA-CF       : [0x00, 0x04, 0x00, 0x00]
-//   PLA Matte    : [0x00, 0x06, 0x00, 0x00]
-//   PETG-CF      : [0x01, 0x01, 0x00, 0x00]
-//   PETG-GF      : [0x01, 0x02, 0x00, 0x00]
-//   TPU 95A      : [0x03, 0x01, 0x00, 0x00]
-//   ASA standard : [0x08, 0x00, 0x00, 0x00]
-// Familles : PLA=0x00, PETG=0x01, TPU=0x03, ASA=0x08
-const ELEGOO_SUBTYPE = {
-  'Standard':  [0x00, 0x00, 0x00, 0x00],  // ✓ vérifié
-  // PLA — vérifiés
-  'PLA+':      [0x00, 0x01, 0x00, 0x00],  // ✓ vérifié
-  'PLA-CF':    [0x00, 0x04, 0x00, 0x00],  // ✓ vérifié
-  'Matte':     [0x00, 0x06, 0x00, 0x00],  // ✓ vérifié
-  // PLA — estimations
-  'Silk':      [0x00, 0x03, 0x00, 0x00],  // ✓ vérifié
-  'Rapid':     [0x00, 0x0A, 0x00, 0x00],  // ✓ vérifié (Rapid PLA+)
-  // PETG — vérifiés
-  'CF':        [0x01, 0x01, 0x00, 0x00],  // ✓ vérifié PETG-CF
-  'PETG-CF':   [0x01, 0x01, 0x00, 0x00],  // ✓ vérifié
-  'GF':        [0x01, 0x02, 0x00, 0x00],  // ✓ vérifié PETG-GF
-  'PETG-GF':   [0x01, 0x02, 0x00, 0x00],  // ✓ vérifié
-  // TPU — vérifié
-  'TPU 95A':   [0x03, 0x01, 0x00, 0x00],  // ✓ vérifié
-  'TPU 87A':   [0x03, 0x02, 0x00, 0x00],  // estimation
-  // ASA — vérifié
-  'ASA':       [0x08, 0x00, 0x00, 0x00],  // ✓ vérifié ASA standard
-  'ASA-CF':    [0x08, 0x01, 0x00, 0x00],  // estimation
-  // ABS, PA — estimations
-  'ABS-CF':    [0x02, 0x01, 0x00, 0x00],
-  'PA-CF':     [0x05, 0x01, 0x00, 0x00],
-  'PA-GF':     [0x05, 0x02, 0x00, 0x00],
-};
-
-function buildElegooPayload(filament) {
-  // Parser la couleur hex (#RRGGBB)
-  const hex   = (filament.color_hex || '#cccccc').replace('#', '');
-  const r     = parseInt(hex.slice(0,2), 16) || 0xCC;
-  const g     = parseInt(hex.slice(2,4), 16) || 0xCC;
-  const b     = parseInt(hex.slice(4,6), 16) || 0xCC;
-
-  // Températures
-  const tNozMin = parseInt(filament.temp_nozzle_min) || 190;
-  const tNozMax = parseInt(filament.temp_nozzle_max) || 230;
-  const tBedMin = parseInt(filament.temp_bed_min)    || 0;
-  const tBedMax = parseInt(filament.temp_bed_max)    || 60;
-
-  // Diamètre : valeur hex officielle ELEGOO (1.75mm → 0x00AF = 175)
-  const diam   = Math.round((parseFloat(filament.diameter) || 1.75) * 100);
-  // Poids en grammes (1000g → 0x03E8)
-  const weight = parseInt(filament.weight_total) || 1000;
-
-  // Code matière officiel ELEGOO (4 bytes → page 18 entière)
-  const matCode = ELEGOO_MATERIAL[filament.material] || ELEGOO_MATERIAL['PLA'];
-
-  // Sous-type ASCII 4 bytes → page 19 (Standard = 4x 0x00)
-  const subCode = ELEGOO_SUBTYPE[filament.elegoo_subtype] || [0x00, 0x00, 0x00, 0x00];
-
-  const pages = {};
-
-  // ── Section URI (pages 4-15) — compatibilité smartphone ──
-  pages[4]  = [0x01, 0x03, 0xA0, 0x0C];
-  pages[5]  = [0x34, 0x03, 0x0F, 0xD1];
-  pages[6]  = [0x01, 0x0B, 0x55, 0x04]; // URI record type "U", prefix https://
-  pages[7]  = [0x65, 0x6C, 0x65, 0x67]; // "eleg"
-  pages[8]  = [0x6F, 0x6F, 0x2E, 0x63]; // "oo.c"
-  pages[9]  = [0x6F, 0x6D, 0xFE, 0x00]; // "om" + TLV terminator
-  pages[10] = [0x00, 0x00, 0x00, 0x00];
-  pages[11] = [0x00, 0x00, 0x00, 0x00];
-  pages[12] = [0x00, 0x00, 0x00, 0x00];
-  pages[13] = [0x00, 0x00, 0x00, 0x00];
-  pages[14] = [0x00, 0x00, 0x00, 0x00];
-  pages[15] = [0x00, 0x00, 0x00, 0x00];
-
-  // ── Section filament (pages 16-24) — lue par l'imprimante ──
-  // Basé sur le dump officiel PLA Elegoo Black 1KG
-  pages[16] = [0x36, 0xEE, 0xEE, 0xEE]; // Header ELEGOO
-  pages[17] = [0xEE, 0x00, 0x00, 0x00]; // Manufacturer ID (générique)
-
-  // Page 18 : 4 bytes du code matière directement
-  // PLA → [00,80,76,65] | PETG → [80,69,84,71] | ABS → [00,65,66,83]
-  pages[18] = [matCode[0], matCode[1], matCode[2], matCode[3]];
-
-  // Page 19 : sous-type encodé ASCII 4 bytes (Standard = 0x00000000)
-  pages[19] = [subCode[0], subCode[1], subCode[2], subCode[3]];
-
-  // Page 20 : couleur [R, G, B, 0xFF]
-  // Dump officiel Black : [00, 00, 00, FF]
-  pages[20] = [r, g, b, 0xFF];
-
-  // Page 21 : températures buse [0x00, min_lo, min_hi, max_lo] (little-endian 16 bits)
-  // Ex: ASA 240-260°C → [00, F0, 01, 04] : min=0x00F0=240, max=0x0104=260
-  // Ex: PLA 190-230°C → [00, BE, 00, E6] : min=0x00BE=190, max=0x00E6=230
-  pages[21] = [0x00, tNozMin & 0xFF, (tNozMin >> 8) & 0xFF, tNozMax & 0xFF];
-
-  // Page 22 : températures plateau [0x00, min_lo, min_hi, max_lo]
-  // Note: le byte max_hi est sur la page suivante (ignoré ici, toujours <256°C)
-  pages[22] = [0x00, tBedMin & 0xFF, (tBedMin >> 8) & 0xFF, tBedMax & 0xFF];
-
-  // Page 23 : diamètre + poids
-  // Dump officiel 1.75mm / 1000g : [00, AF, 03, E8]
-  // AF = 175 (1.75 × 100), 03E8 = 1000g big-endian
-  pages[23] = [
-    0x00,
-    diam & 0xFF,
-    (weight >> 8) & 0xFF,
-    weight & 0xFF,
-  ];
-
-  // Page 24 : code production [00, 36, C8, 00] d'après dump officiel
-  pages[24] = [0x00, 0x36, 0xC8, 0x00];
-
-  return pages;
-}
+// ── Encodeur format ELEGOO (Centauri Carbon 2) : voir elegoo.js ──
+const elegoo = require('./elegoo');
 
 async function writeElegooFormat(filament) {
   if (!currentReader) throw new Error('Lecteur non disponible');
   if (!lastCard)      throw new Error('Posez la bobine sur le lecteur');
 
-  const pages = buildElegooPayload(filament);
+  const { pages, warnings, resolved } = elegoo.encode(filament);
   const results = [];
+  results.warnings = warnings;
+  results.resolved = resolved;
 
   for (const [pageStr, data] of Object.entries(pages)) {
     const page = parseInt(pageStr);
@@ -413,10 +275,16 @@ function setupRoutes(router) {
           bytes: Array.from(data),
         });
       }
-      res.json({ uid: lastCard.uid, pages: dump });
+      const bytesByPage = Object.fromEntries(dump.map(d => [d.page, d.bytes]));
+      res.json({ uid: lastCard.uid, pages: dump, decoded: elegoo.decode(bytesByPage) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
+  });
+
+  // GET /api/nfc/elegoo-subtypes — sous-types ELEGOO par matière (formulaire filament)
+  router.get('/elegoo-subtypes', (req, res) => {
+    res.json(elegoo.subtypesByMaterial());
   });
 
   // POST /api/nfc/write-elegoo — écrire au format ELEGOO Centauri Carbon 2
@@ -445,6 +313,8 @@ function setupRoutes(router) {
       } catch(_) {}
 
       res.json({
+        warnings: results.warnings || [],
+        resolved: results.resolved || null,
         ok: true,
         pages_written: pagesWritten,
         filament: filament.name,

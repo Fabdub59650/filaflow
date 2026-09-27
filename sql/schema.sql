@@ -153,3 +153,19 @@ INSERT IGNORE INTO `settings` (key_name, value) VALUES ('backup_nas_folder','/fi
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('backup_path','/opt/filaflow/backups');
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('backup_library_enabled','false');
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('backup_report_email','false');
+
+-- ── v1.3.0 — Format ELEGOO complet ──────────────────────────
+-- Nouvelles matières reconnues par la Centauri Carbon 2
+ALTER TABLE `filaments` MODIFY COLUMN `material`
+  ENUM('PLA','PETG','ABS','ASA','TPU','Nylon','PC','HIPS','PVA','CPE','BVOH','EVA','PP','PPA','PPS','autre') DEFAULT 'PLA';
+-- Sous-types : anciens libellés courts → noms officiels ELEGOO (idempotent)
+UPDATE `filaments` SET `elegoo_subtype` = CASE
+    WHEN `elegoo_subtype` = 'Matte' THEN 'PLA Matte'
+    WHEN `elegoo_subtype` = 'Silk'  THEN 'PLA Silk'
+    WHEN `elegoo_subtype` = 'Rapid' THEN 'RAPID PLA+'
+    WHEN `elegoo_subtype` = 'CF' AND `material` = 'PLA'  THEN 'PLA-CF'
+    WHEN `elegoo_subtype` = 'CF' AND `material` = 'PETG' THEN 'PETG-CF'
+    WHEN `elegoo_subtype` = 'GF' AND `material` = 'PETG' THEN 'PETG-GF'
+    ELSE NULL
+  END
+  WHERE `elegoo_subtype` IN ('Standard','Matte','Silk','Rapid','CF','GF','TPU 87A','ASA','ASA-CF','ABS-CF','PA-GF');
