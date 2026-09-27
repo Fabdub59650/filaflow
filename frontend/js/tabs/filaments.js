@@ -4,6 +4,7 @@ let _sortCol      = null;
 let _sortDir      = 'asc';
 let _filterQuery  = '';
 let _filterMat    = '';
+let _filterColor  = '';   // clé normalisée de « Nom couleur »
 let _filView      = (function(){ try { return localStorage.getItem('ff_fil_view') || 'grid'; } catch(_) { return 'grid'; } })();
 
 // Filtres avancés filaments
@@ -61,6 +62,7 @@ function filterFilaments(filaments) {
 
   // Filtres rapides
   if (_filterMat) result = result.filter(function(f){ return f.material === _filterMat; });
+  if (_filterColor) result = result.filter(function(f){ return colorKey(f) === _filterColor; });
   if (_filterQuery) {
     const q = _filterQuery.toLowerCase();
     result = result.filter(function(f) {
@@ -99,6 +101,58 @@ function filterFilaments(filaments) {
 
 function countActiveFilAdvanced() {
   return Object.values(_filAdvanced).filter(function(v) { return v !== ''; }).length;
+}
+
+// ── Regroupement par matière ou par « Nom couleur » ──────────────────────
+function colorKey(f) {
+  return (f.color_name || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function colorLabel(f) {
+  const c = (f.color_name || '').trim();
+  return c ? c.charAt(0).toUpperCase() + c.slice(1) : 'Sans couleur';
+}
+function getFilGroup() {
+  const def = _filView === 'list' ? 'material' : 'none';
+  try { return localStorage.getItem('ff_fil_group_' + _filView) || def; } catch(_) { return def; }
+}
+function setFilGroup(v) {
+  try { localStorage.setItem('ff_fil_group_' + _filView, v); } catch(_) {}
+  renderFilamentGrid();
+}
+function setColorFilter(key) {
+  _filterColor = _filterColor === key ? '' : key;
+  renderFilamentGrid();
+}
+// Découpe la liste ordonnée en groupes [{ key, label, items }]
+function buildFilGroups(list, mode) {
+  if (mode === 'none') return [{ key: '', label: 'Toutes les bobines', items: list }];
+  const map = new Map();
+  list.forEach(function(f) {
+    const key   = mode === 'color' ? colorKey(f) : f.material;
+    const label = mode === 'color' ? colorLabel(f) : f.material;
+    if (!map.has(key)) map.set(key, { key: key, label: label, items: [] });
+    map.get(key).items.push(f);
+  });
+  const groups = Array.from(map.values());
+  if (mode === 'color') {
+    groups.sort(function(a, b) {
+      if (!a.key) return 1; if (!b.key) return -1;
+      return a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' });
+    });
+  }
+  return groups;
+}
+function groupIsFiltered(mode, key) {
+  if (mode === 'none') return false;
+  return mode === 'color' ? _filterColor === key : _filterMat === key;
+}
+function groupFilterCall(mode, key) {
+  return (mode === 'color' ? 'setColorFilter' : 'setMaterialFilter') + "('" + escHtml(String(key).replace(/'/g, "\\'")) + "')";
+}
+function groupSwatches(items) {
+  const seen = [];
+  items.forEach(function(f) { const h = (f.color_hex || '').toLowerCase(); if (h && seen.indexOf(h) < 0) seen.push(h); });
+  return seen.slice(0, 8).map(function(h) { return '<span class="group-swatch" style="background:' + escHtml(h) + '"></span>'; }).join('');
 }
 
 function setMaterialFilter(mat) {
@@ -398,13 +452,24 @@ function renderFilToolbar() {
     mats.map(function(m) {
       return '<button type="button" class="chip' + (_filterMat === m ? ' active' : '') + '" onclick="setMaterialFilter(\'' + escHtml(m) + '\')">' + escHtml(m) + ' · ' + counts[m] + '</button>';
     }).join('');
-  const sortOpts = [['', 'Matière'], ['pct', 'Stock restant ↑'], ['name', 'Nom']];
+  const grp = getFilGroup();
+  const grpSel = '<label>Regrouper <select onchange="setFilGroup(this.value)" aria-label="Regrouper les bobines">' +
+    [['none', 'Aucun'], ['material', 'Matière'], ['color', 'Couleur']].map(function(o) {
+      return '<option value="' + o[0] + '"' + (grp === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('') + '</select></label>';
+  let colorChip = '';
+  if (_filterColor) {
+    const ref = allFilaments.find(function(f) { return colorKey(f) === _filterColor; });
+    colorChip = '<button type="button" class="chip active" onclick="setColorFilter(\'' + escHtml(_filterColor) + '\')" aria-label="Retirer le filtre couleur">Couleur : ' +
+      escHtml(ref ? colorLabel(ref) : _filterColor) + ' ✕</button>';
+  }
+  const sortOpts = [['', 'Par défaut'], ['pct', 'Stock restant ↑'], ['name', 'Nom']];
   const sortSel = '<label>Tri <select onchange="setGridSort(this.value)" aria-label="Trier les bobines">' +
     sortOpts.map(function(o) { return '<option value="' + o[0] + '"' + ((_sortCol || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
     '</select></label>';
   return '<div class="fil-toolbar">' +
-    '<div class="chip-row" role="group" aria-label="Filtrer par matière">' + chips + '</div>' +
-    '<div class="view-switch">' + sortSel +
+    '<div class="chip-row" role="group" aria-label="Filtrer par matière">' + chips + colorChip + '</div>' +
+    '<div class="view-switch">' + grpSel + sortSel +
       '<button type="button" class="' + (_filView === 'grid' ? 'active' : '') + '" onclick="setFilView(\'grid\')">Grille</button>' +
       '<button type="button" class="' + (_filView === 'list' ? 'active' : '') + '" onclick="setFilView(\'list\')">Liste</button>' +
     '</div></div>';
@@ -498,11 +563,6 @@ function renderFilamentGrid() {
     return f.parent_filament_id && !parents.find(function(p) { return String(p.id) === String(f.parent_filament_id); });
   }).forEach(function(f) { ordered.push(f); });
 
-  const grouped = {};
-  ordered.forEach(f => {
-    if (!grouped[f.material]) grouped[f.material] = [];
-    grouped[f.material].push(f);
-  });
 
   // Mettre à jour le compteur dans le panneau si visible
   setTimeout(function() {
@@ -516,21 +576,38 @@ function renderFilamentGrid() {
     return;
   }
 
+  const grpMode = getFilGroup();
+  const groups  = buildFilGroups(ordered, grpMode);
+
   if (_filView === 'grid') {
-    content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() +
-      '<div class="spool-grid">' + ordered.map(spoolCardHtml).join('') + '</div>';
+    const body = grpMode === 'none'
+      ? '<div class="spool-grid">' + ordered.map(spoolCardHtml).join('') + '</div>'
+      : groups.map(function(g) {
+          const on = groupIsFiltered(grpMode, g.key);
+          return '<section class="group">' +
+            '<button type="button" class="group-head' + (on ? ' on' : '') + '" onclick="' + groupFilterCall(grpMode, g.key) + '"' +
+              ' title="' + (on ? 'Afficher tous les groupes' : 'Afficher seulement ce groupe') + '">' +
+              '<span class="group-title">' + escHtml(g.label) + '</span>' +
+              (grpMode === 'color' ? '<span class="group-swatches">' + groupSwatches(g.items) + '</span>' : '') +
+              '<span class="group-count">' + g.items.length + ' bobine' + (g.items.length > 1 ? 's' : '') + (on ? ' · ✕' : '') + '</span>' +
+            '</button>' +
+            '<div class="spool-grid">' + g.items.map(spoolCardHtml).join('') + '</div>' +
+          '</section>';
+        }).join('');
+    content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() + body;
     return;
   }
 
-  content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() + Object.entries(grouped).map(([mat, filaments]) => `
+  content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() + groups.map(g => { const filaments = g.items; const on = groupIsFiltered(grpMode, g.key); return `
     <div class="card">
-      <div class="card-header" style="cursor:pointer" onclick="setMaterialFilter('${mat}')"
-           title="${_filterMat===mat ? 'Cliquer pour afficher toutes les matières' : 'Cliquer pour filtrer sur ' + mat}">
-        <span class="card-title" style="${_filterMat===mat ? 'color:var(--accent)' : ''}">${mat}
-          ${_filterMat===mat ? '<span style="font-size:11px;font-weight:normal;margin-left:6px;color:var(--accent)">● filtré</span>' : ''}
+      <div class="card-header" ${grpMode === 'none' ? '' : `style="cursor:pointer" onclick="${groupFilterCall(grpMode, g.key)}"
+           title="${on ? 'Afficher tous les groupes' : 'Filtrer sur ' + escHtml(g.label)}"`}>
+        <span class="card-title" style="display:flex;align-items:center;gap:10px;${on ? 'color:var(--accent)' : ''}">${escHtml(g.label)}
+          ${grpMode === 'color' ? '<span class="group-swatches">' + groupSwatches(filaments) + '</span>' : ''}
+          ${on ? '<span style="font-size:11px;font-weight:normal;color:var(--accent)">● filtré</span>' : ''}
         </span>
         <span style="font-size:12px;color:var(--text3)">${filaments.length} bobine${filaments.length>1?'s':''}
-          <span style="font-size:11px;opacity:0.5;margin-left:4px">${_filterMat===mat ? '✕' : '▼'}</span>
+          ${grpMode === 'none' ? '' : `<span style="font-size:11px;opacity:0.5;margin-left:4px">${on ? '✕' : '▼'}</span>`}
         </span>
       </div>
       <table style="table-layout:fixed;width:100%">
@@ -622,7 +699,7 @@ function renderFilamentGrid() {
           }).join('')}
         </tbody>
       </table>
-    </div>`).join('');
+    </div>`; }).join('');
 }
 
 function openFilamentForm(id = null, defaultParentId = null, sourceData = null) {

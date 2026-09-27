@@ -1,5 +1,15 @@
 # Changelog — FilaFlow
 
+## 1.2.0 — septembre 2026 — regroupement par couleur
+
+- Écran Filaments : nouveau sélecteur « Regrouper » (Aucun / Matière / Couleur), en vue Grille
+  comme en vue Liste ; le choix est mémorisé séparément pour chaque vue
+- Regroupement sur le champ « Nom couleur » des fiches, insensible à la casse, aux accents et
+  aux espaces (« Noir », « noir » et « noir  » forment un seul groupe) ; groupe « Sans couleur » en fin
+- Chaque groupe affiche les pastilles des teintes qu'il contient et son nombre de bobines ;
+  un clic sur l'en-tête filtre sur ce groupe (pastille « Couleur : … ✕ » pour revenir)
+- Tri : l'option « Matière » devient « Par défaut »
+
 ## 1.1.2 — septembre 2026
 
 - Paramètres › Système : suppression de la jauge « SSD USB (/mnt/data) », le disque externe

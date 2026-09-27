@@ -442,3 +442,13 @@ body:not([data-tab="filaments"]) .mobile-actions { display: none !important; }
   body[data-tab="filaments"] #page-title { display: none; }
   .fil-head { margin-bottom: 14px; }
 }
+
+/* Groupes (matière / couleur) dans la vue grille */
+.group { margin-bottom: 26px; }
+.group-head { display: flex; align-items: center; gap: 14px; width: 100%; background: none; border: none; border-bottom: 1px solid var(--border); padding: 0 0 10px; margin-bottom: 14px; color: var(--text); cursor: pointer; text-align: left; }
+.group-head:hover .group-title { color: var(--accent); }
+.group-head.on .group-title { color: var(--accent); }
+.group-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.05em; text-transform: uppercase; }
+.group-swatches { display: inline-flex; gap: 4px; }
+.group-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--ring-edge); display: inline-block; }
+.group-count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; }
