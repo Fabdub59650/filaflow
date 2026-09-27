@@ -15,11 +15,11 @@ const db        = require('./db');
 const multer    = require('multer');
 const restoreUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500*1024*1024 } });
 
-const DEFAULT_BACKUP_PATH    = '/opt/printflow/backups';
+const DEFAULT_BACKUP_PATH    = '/opt/filaflow/backups';
 const DEFAULT_SCHEDULE       = '0 2 * * *'; // 2h du matin tous les jours
 const DEFAULT_KEEP           = 7;           // 7 fichiers conservés
-const DEFAULT_LIBRARY_PATH   = process.env.LIBRARY_PATH || '/opt/printflow/library';
-const INSTALL_DIR            = '/opt/printflow';
+const DEFAULT_LIBRARY_PATH   = process.env.LIBRARY_PATH || '/opt/filaflow/library';
+const INSTALL_DIR            = '/opt/filaflow';
 
 let _cronTimer = null;
 let _lastBackup = null;
@@ -48,14 +48,14 @@ async function getBackupSettings() {
       nasShare:        s.backup_nas_share    || '',
       nasUser:         s.backup_nas_user     || '',
       nasPassword:     s.backup_nas_password ? (function(){ try{ return decrypt(s.backup_nas_password); }catch(_){ return s.backup_nas_password; } })() : '',
-      nasFolder:       s.backup_nas_folder   || '/printflow',
+      nasFolder:       s.backup_nas_folder   || '/filaflow',
       reportEmail:     s.backup_report_email !== 'false',
     };
   } catch (_) {
     return { enabled: false, path: DEFAULT_BACKUP_PATH, schedule: DEFAULT_SCHEDULE,
              keep: DEFAULT_KEEP, libraryEnabled: true, libraryPath: DEFAULT_LIBRARY_PATH,
              destination: 'local', nasIp:'', nasShare:'', nasUser:'', nasPassword:'',
-             nasFolder:'/printflow', reportEmail: true };
+             nasFolder:'/filaflow', reportEmail: true };
   }
 }
 
@@ -63,9 +63,9 @@ async function getBackupSettings() {
 function getDbConfig() {
   return {
     host:   process.env.DB_HOST     || 'localhost',
-    user:   process.env.DB_USER     || 'printflow',
-    pass:   process.env.DB_PASSWORD || 'printflow_secret',
-    name:   process.env.DB_NAME     || 'printflow',
+    user:   process.env.DB_USER     || 'filaflow',
+    pass:   process.env.DB_PASSWORD || 'filaflow_secret',
+    name:   process.env.DB_NAME     || 'filaflow',
   };
 }
 
@@ -128,77 +128,6 @@ function formatSize(bytes) {
   return (bytes/1024/1024/1024).toFixed(2) + ' Go';
 }
 
-// ── Rapport email ─────────────────────────────────────────
-async function sendBackupReport(report) {
-  try {
-    const { getSmtpConfig, createTransporter } = require('./mailer');
-    const cfg = await getSmtpConfig();
-    if (!cfg.host) { console.log('[Backup] Mail non envoyé : SMTP non configuré'); return; }
-    if (!cfg.email) { console.log('[Backup] Mail non envoyé : adresse email destinataire manquante'); return; }
-
-    const [[appRow]] = await db.query(
-      "SELECT value FROM settings WHERE key_name='app_name'"
-    ).catch(function(){ return [[{value:'PrintFlow-3D'}]]; });
-    const appName = appRow?.value || 'PrintFlow-3D';
-
-    const ok      = report.success;
-    const dmin    = Math.floor(report.duration / 60);
-    const dsec    = report.duration % 60;
-    const durStr  = dmin > 0 ? dmin + 'min ' + dsec + 's' : dsec + 's';
-    const subject = (ok ? '[OK] ' : '[ERREUR] ') +
-      'Sauvegarde ' + appName + ' — ' + report.date + ' ' + report.time;
-
-    const html = ok ? `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  body{font-family:system-ui,sans-serif;color:#111;max-width:600px;margin:0 auto;padding:24px}
-  h2{color:#16a34a;margin-bottom:4px}.badge{display:inline-block;padding:3px 12px;
-  border-radius:20px;font-size:12px;font-weight:600;background:#dcfce7;color:#16a34a;margin-bottom:16px}
-  table{width:100%;border-collapse:collapse;margin:12px 0}
-  td{padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px}
-  td:first-child{color:#6b7280;width:45%}td:last-child{font-weight:500}
-  .sec{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-       letter-spacing:0.06em;padding:12px 0 4px;border-top:1px solid #e5e7eb}
-  .footer{margin-top:24px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:12px}
-</style></head><body>
-<h2>Sauvegarde réussie</h2><span class="badge">OK</span>
-<table>
-  <tr><td class="sec" colspan="2">Informations</td></tr>
-  <tr><td>Date</td><td>${report.date} à ${report.time}</td></tr>
-  <tr><td>Type</td><td>${report.type}</td></tr>
-  <tr><td>Durée</td><td>${durStr}</td></tr>
-  <tr><td>Destination</td><td>${report.destination}</td></tr>
-  <tr><td class="sec" colspan="2">Contenu sauvegardé</td></tr>
-  <tr><td>Base de données</td><td>${formatSize(report.dbSize)}</td></tr>
-  <tr><td>Photos</td><td>${report.photoCount} nouveau(x) — ${formatSize(report.photoSize)}</td></tr>
-  <tr><td>Bibliothèque</td><td>${report.libCount} nouveau(x) — ${formatSize(report.libSize)}</td></tr>
-  <tr><td>Espace total</td><td>${formatSize(report.totalSize)}</td></tr>
-  ${report.deleted.length ? `<tr><td class="sec" colspan="2">Rétention</td></tr>
-  <tr><td>${report.deleted.length} supprimée(s)</td><td style="font-size:11px;color:#6b7280">${report.deleted.join('<br>')}</td></tr>` : ''}
-</table>
-<div class="footer">${appName} — Rapport de sauvegarde automatique</div>
-</body></html>` : `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  body{font-family:system-ui,sans-serif;color:#111;max-width:600px;margin:0 auto;padding:24px}
-  h2{color:#dc2626}.badge{display:inline-block;padding:3px 12px;border-radius:20px;
-  font-size:12px;font-weight:600;background:#fee2e2;color:#dc2626;margin-bottom:16px}
-  .err{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;
-       font-family:monospace;font-size:13px;color:#991b1b;margin:16px 0}
-  .footer{margin-top:24px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:12px}
-</style></head><body>
-<h2>Échec de la sauvegarde</h2><span class="badge">ERREUR</span>
-<p style="color:#6b7280;font-size:13px">Sauvegarde du ${report.date} à ${report.time}</p>
-<div class="err">${report.error}</div>
-<div class="footer">${appName} — Rapport de sauvegarde automatique</div>
-</body></html>`;
-
-    let nodemailer = null;
-    try { nodemailer = require('nodemailer'); } catch(_) { return; }
-    const transporter = await createTransporter(cfg);
-    await transporter.sendMail({ from: cfg.user, to: cfg.email, subject, html });
-    console.log('[Backup] Rapport email envoyé à', cfg.email);
-  } catch(e) { console.error('[Backup] Erreur envoi mail:', e.message); }
-}
-
 // ── Effectuer une sauvegarde incrémentielle ───────────────
 async function runBackup() {
   const settings  = await getBackupSettings();
@@ -230,7 +159,7 @@ async function runBackup() {
     if (settings.destination === 'nas') {
       if (!settings.nasIp || !settings.nasShare)
         throw new Error('Configuration NAS incomplète (IP ou partage manquant)');
-      mountPoint = '/tmp/printflow_nas_' + Date.now();
+      mountPoint = '/tmp/filaflow_nas_' + Date.now();
       await mountNas(settings, mountPoint);
       backupRoot = path.join(mountPoint, settings.nasFolder.replace(/^\//, ''));
       report.destination = '//' + settings.nasIp + '/' + settings.nasShare + settings.nasFolder;
@@ -265,7 +194,7 @@ async function runBackup() {
     const [[photoPathRow]] = await db.query(
       "SELECT value FROM settings WHERE key_name='prints_photo_path'"
     ).catch(function(){ return [[null]]; });
-    const PHOTOS_DIR = photoPathRow?.value || '/opt/printflow/prints';
+    const PHOTOS_DIR = photoPathRow?.value || '/opt/filaflow/prints';
 
     if (fs.existsSync(PHOTOS_DIR)) {
       const photosDest = path.join(destDir, 'photos');
@@ -366,11 +295,6 @@ async function runBackup() {
      report.success ? 'ok' : 'error:'+report.error]
   ).catch(function(){});
 
-  // Rapport email
-  if (settings.reportEmail) {
-    sendBackupReport(report).catch(function(){});
-  }
-
   return report;
 }
 
@@ -378,7 +302,7 @@ async function runBackup() {
 function cleanOldBackups(backupPath, keep) {
   try {
     const files = fs.readdirSync(backupPath)
-      .filter(f => f.startsWith('printflow_') && f.endsWith('.sql'))
+      .filter(f => f.startsWith('filaflow_') && f.endsWith('.sql'))
       .map(f => ({ name: f, time: fs.statSync(path.join(backupPath, f)).mtime.getTime() }))
       .sort((a, b) => b.time - a.time); // Plus récent en premier
 
@@ -398,7 +322,7 @@ async function backupLibrary(settings) {
   }
   const now      = new Date();
   const stamp    = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const filename = `printflow_library_${stamp}.tar.gz`;
+  const filename = `filaflow_library_${stamp}.tar.gz`;
   const filepath = path.join(settings.path, filename);
 
   return new Promise((resolve, reject) => {
@@ -422,7 +346,7 @@ async function backupLibrary(settings) {
 function cleanOldLibraryBackups(backupPath, keep) {
   try {
     const files = fs.readdirSync(backupPath)
-      .filter(f => f.startsWith('printflow_library_') && f.endsWith('.tar.gz'))
+      .filter(f => f.startsWith('filaflow_library_') && f.endsWith('.tar.gz'))
       .map(f => ({ name: f, time: fs.statSync(path.join(backupPath, f)).mtime.getTime() }))
       .sort((a, b) => b.time - a.time);
     files.slice(keep).forEach(f => {
@@ -437,8 +361,8 @@ function listBackups(backupPath) {
   try {
     if (!fs.existsSync(backupPath)) return [];
     return fs.readdirSync(backupPath)
-      .filter(f => (f.startsWith('printflow_') && f.endsWith('.sql')) ||
-                   (f.startsWith('printflow_library_') && f.endsWith('.tar.gz')))
+      .filter(f => (f.startsWith('filaflow_') && f.endsWith('.sql')) ||
+                   (f.startsWith('filaflow_library_') && f.endsWith('.tar.gz')))
       .map(f => {
         const stat = fs.statSync(path.join(backupPath, f));
         const type = f.endsWith('.tar.gz') ? 'library' : 'database';
@@ -601,7 +525,7 @@ function setupRoutes(router) {
       const filename  = path.basename(req.params.filename); // sécurité
       const filepath  = path.join(settings.path, filename);
       if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Fichier non trouvé' });
-      if (!filename.startsWith('printflow_') || (!filename.endsWith('.sql') && !filename.endsWith('.tar.gz')))
+      if (!filename.startsWith('filaflow_') || (!filename.endsWith('.sql') && !filename.endsWith('.tar.gz')))
         return res.status(400).json({ error: 'Fichier invalide' });
       const mime = filename.endsWith('.tar.gz') ? 'application/gzip' : 'application/sql';
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -616,7 +540,7 @@ function setupRoutes(router) {
       const settings = await getBackupSettings();
       const filename  = path.basename(req.params.filename);
       const filepath  = path.join(settings.path, filename);
-      if (!filename.startsWith('printflow_') || (!filename.endsWith('.sql') && !filename.endsWith('.tar.gz')))
+      if (!filename.startsWith('filaflow_') || (!filename.endsWith('.sql') && !filename.endsWith('.tar.gz')))
         return res.status(400).json({ error: 'Fichier invalide' });
       if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
       res.json({ ok: true });
@@ -640,7 +564,7 @@ function setupRoutes(router) {
         ['backup_nas_share',        nasShare    || ''],
         ['backup_nas_user',         nasUser     || ''],
         ['backup_nas_password',     nasPassword !== undefined ? encrypt(nasPassword) : undefined],
-        ['backup_nas_folder',       nasFolder   || '/printflow'],
+        ['backup_nas_folder',       nasFolder   || '/filaflow'],
         ['backup_report_email',     String(reportEmail !== false && reportEmail !== 'false')],
       ];
       for (const [k, v] of entries) {
@@ -660,13 +584,13 @@ function setupRoutes(router) {
     const { nasIp, nasShare, nasUser, nasPassword, nasFolder } = req.body;
     if (!nasIp || !nasShare)
       return res.status(400).json({ ok: false, message: 'IP et partage requis' });
-    const mountPoint = '/tmp/printflow_nas_test_' + Date.now();
+    const mountPoint = '/tmp/filaflow_nas_test_' + Date.now();
     try {
       await mountNas({ nasIp, nasShare, nasUser, nasPassword }, mountPoint);
       // Test écriture
-      const folder = path.join(mountPoint, (nasFolder||'printflow').replace(/^\//, ''));
+      const folder = path.join(mountPoint, (nasFolder||'filaflow').replace(/^\//, ''));
       fs.mkdirSync(folder, { recursive: true });
-      const testFile = path.join(folder, '.printflow_test');
+      const testFile = path.join(folder, '.filaflow_test');
       fs.writeFileSync(testFile, 'ok');
       fs.unlinkSync(testFile);
       unmountNas(mountPoint);
@@ -722,8 +646,8 @@ function setupRoutes(router) {
       fs.writeFileSync(path.join(tmpDir, 'config.json'), JSON.stringify(configObj, null, 2));
 
       // 3. Construire la commande tar en streaming direct vers HTTP
-      const filename    = 'printflow_export_' + stamp + '.tar.gz';
-      const libraryPath = settings.libraryPath || '/opt/printflow/library';
+      const filename    = 'filaflow_export_' + stamp + '.tar.gz';
+      const libraryPath = settings.libraryPath || '/opt/filaflow/library';
 
       // Construire les arguments tar
       const tarArgs = ['-czf', '-', '-C', path.dirname(tmpDir), path.basename(tmpDir)];
@@ -767,7 +691,7 @@ function setupRoutes(router) {
     const filename = req.file.originalname;
     const buffer   = req.file.buffer;
     // Lire config DB depuis .env
-    const cfg = { user: 'printflow', password: '', database: 'printflow' };
+    const cfg = { user: 'filaflow', password: '', database: 'filaflow' };
     try {
       const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
       envContent.split('\n').forEach(function(line) {

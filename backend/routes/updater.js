@@ -8,10 +8,10 @@ const path    = require('path');
 const fs      = require('fs');
 const { execSync, exec } = require('child_process');
 
-const GITHUB_REPO    = 'Fabdub59650/printflow-3d';
+const GITHUB_REPO    = 'Fabdub59650/filaflow';
 const GITHUB_API     = 'https://api.github.com/repos/' + GITHUB_REPO + '/releases/latest';
-const INSTALL_DIR    = '/opt/printflow';
-const UPDATE_WORK    = '/tmp/printflow-update';
+const INSTALL_DIR    = '/opt/filaflow';
+const UPDATE_WORK    = '/tmp/filaflow-update';
 
 // ── GET /api/updater/check — vérifier si une mise à jour est disponible ───
 router.get('/check', async (req, res) => {
@@ -32,7 +32,7 @@ router.get('/check', async (req, res) => {
 
     // Interroger GitHub
     const ghRes = await nodeFetch(GITHUB_API, {
-      headers: { 'User-Agent': 'PrintFlow-3D-Updater' },
+      headers: { 'User-Agent': 'FilaFlow-Updater' },
       timeout: 10000,
     });
     if (!ghRes.ok) throw new Error('GitHub API : ' + ghRes.status);
@@ -61,7 +61,7 @@ router.post('/update', async (req, res) => {
     if (!download_url) return res.status(400).json({ error: 'URL de téléchargement manquante' });
 
     // Répondre immédiatement — la mise à jour se fait en arrière-plan
-    res.json({ ok: true, message: 'Mise à jour en cours — PrintFlow va redémarrer dans quelques secondes.' });
+    res.json({ ok: true, message: 'Mise à jour en cours — FilaFlow va redémarrer dans quelques secondes.' });
 
     // Lancer en arrière-plan
     setTimeout(function() {
@@ -86,7 +86,7 @@ async function runUpdate(downloadUrl, version) {
   console.log('[Updater] Téléchargement depuis', downloadUrl);
   const zipPath = path.join(UPDATE_WORK, 'update.zip');
   const response = await nodeFetch(downloadUrl, {
-    headers: { 'User-Agent': 'PrintFlow-3D-Updater' }
+    headers: { 'User-Agent': 'FilaFlow-Updater' }
   });
   if (!response.ok) throw new Error('Téléchargement échoué : ' + response.status);
   const buffer = await response.buffer();
@@ -108,6 +108,7 @@ async function runUpdate(downloadUrl, version) {
   // 4. Fichiers à NE PAS écraser (données utilisateur)
   const EXCLUDE = [
     'backend/.key',
+    'backend/.env',
     'backend/node_modules',
     'frontend/uploads',
     'prints',
@@ -148,7 +149,7 @@ async function runUpdate(downloadUrl, version) {
 
   // 9. Redémarrer le service
   setTimeout(function() {
-    exec('systemctl restart printflow', function(err) {
+    exec('systemctl restart filaflow', function(err) {
       if (err) console.error('[Updater] Erreur redémarrage :', err.message);
     });
   }, 1000);

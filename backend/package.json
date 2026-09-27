@@ -1,7 +1,7 @@
 {
-  "name": "printflow",
-  "version": "2.9.10",
-  "description": "PrintFlow \u2014 Gestion impressions 3D",
+  "name": "filaflow",
+  "version": "1.0.0",
+  "description": "FilaFlow — Gestion du stock de filament (pesées, NFC)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,18 +13,10 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "node-fetch": "^2.7.0",
-    "express-http-proxy": "^2.0.0",
     "multer": "^2.1.1",
-    "nfc-pcsc": "^0.8.1",
-    "nodemailer": "^6.9.8",
-    "node-cron": "^3.0.3",
-    "tp-link-tapo-connect": "^2.0.15",
-    "archiver": "^7.0.1",
-    "adm-zip": "^0.5.10",
-    "exceljs": "^4.4.0"
+    "nfc-pcsc": "^0.8.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
-  },
-  "build_date": "13/04/2026"
+  }
 }
