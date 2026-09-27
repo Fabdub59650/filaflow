@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta name="version" content="2.9.6">
+  <meta name="version" content="1.0.0">
   <meta name="theme-color" content="#3b82f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="PrintFlow-3D">
+  <meta name="apple-mobile-web-app-title" content="FilaFlow">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <meta name="build-date" content="05/04/2026 09:47">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PrintFlow</title>
+<title>FilaFlow</title>
 <link rel="stylesheet" href="/css/app.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 </head>
@@ -26,58 +24,18 @@
     <div class="sidebar-header">
       <div class="logo-mark"></div>
       <div>
-        <div class="logo-name">PrintFlow</div>
-        <div class="logo-sub">Gestion 3D</div>
+        <div class="logo-name">FilaFlow</div>
+        <div class="logo-sub">Stock filament</div>
       </div>
     </div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" data-tab="dashboard">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
-        Tableau de bord
-      </a>
-      <a href="#" class="nav-item" data-tab="printers">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="16" height="9" rx="2"/><rect x="6" y="2" width="8" height="5" rx="1"/><path d="M6 15h8v3a1 1 0 01-1 1H7a1 1 0 01-1-1v-3z"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
-        Imprimantes
-      </a>
-      <a href="#" class="nav-item" data-tab="prints">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h8M4 12h10M4 16h6"/></svg>
-        Impressions
-      </a>
-      <a href="#" class="nav-item" data-tab="projects" id="nav-projects">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M6 7h8M6 11h5"/><path d="M14 13l2 2 3-3" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Projets
-      </a>
-      <a href="#" class="nav-item" data-tab="filaments">
+      <a href="#" class="nav-item active" data-tab="filaments">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/><path d="M10 3v4M10 13v4M3 10h4M13 10h4"/></svg>
         Filaments
       </a>
       <a href="#" class="nav-item" data-tab="spoolweights">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 3v14M3 10h14"/><circle cx="10" cy="10" r="2" fill="currentColor"/></svg>
         Bobines réf.
-      </a>
-      <a href="#" class="nav-item" data-tab="library">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="7" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="10" y="3" width="7" height="14" rx="1"/></svg>
-        Bibliothèque
-      </a>
-      <a href="#" class="nav-item" data-tab="maintenance">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.5 2.5l-2 2-1 3 3-1 2-2a2 2 0 00-2-2zM3 17l4-4 1-3-3 1-4 4a1 1 0 001.4 1.4z"/></svg>
-        Maintenance
-      </a>
-      <a href="#" class="nav-item" data-tab="stats">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 15V9M8 15V5M12 15V11M16 15V7"/></svg>
-        Statistiques
-      </a>
-      <a href="#" class="nav-item" id="nav-quotes" data-tab="quotes">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Devis
-      </a>
-      <a href="#" class="nav-item" data-tab="schedule">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Planning
-      </a>
-      <a href="#" class="nav-item" id="nav-gallery" data-tab="gallery">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Galerie
       </a>
       <div class="nav-divider"></div>
       <a href="#" class="nav-item" data-tab="settings">
@@ -89,10 +47,6 @@
         Historique
       </a>
     </nav>
-    <div id="spoolman-badge" class="spoolman-status offline">
-      <span class="status-dot"></span>
-      <span class="status-label">Spoolman</span>
-    </div>
     <div id="pwa-install-btn"
          onclick="installPWA()"
          style="display:none;align-items:center;gap:7px;padding:10px 16px;
@@ -115,55 +69,13 @@
     <div id="topbar">
       <!-- Hamburger mobile/tablette -->
       <button id="hamburger-btn" style="display:none" onclick="toggleSidebar()" aria-label="Menu">☰</button>
-      <div id="page-title">Tableau de bord</div>
-      <!-- Barre de recherche globale -->
-      <div id="global-search-wrap" style="position:relative;flex:1;max-width:340px;margin:0 16px">
-        <div style="display:flex;align-items:center;background:var(--bg3);border:0.5px solid var(--border2);
-                    border-radius:var(--radius);padding:0 10px;gap:8px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" style="color:var(--text3);flex-shrink:0">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input id="global-search-input" type="text" placeholder="Rechercher… (⌘K)"
-            autocomplete="off" spellcheck="false"
-            style="border:none;background:transparent;outline:none;font-size:13px;
-                   color:var(--text);width:100%;padding:7px 0"
-            oninput="onSearchInput(this.value)"
-            onkeydown="onSearchKeydown(event)"
-            onfocus="onSearchFocus()"
-            onblur="onSearchBlur()">
-          <kbd id="search-shortcut-hint"
-            style="font-size:10px;color:var(--text3);background:var(--bg2);border:0.5px solid var(--border2);
-                   border-radius:3px;padding:1px 5px;white-space:nowrap">⌘K</kbd>
-          <button id="search-clear-btn" onclick="clearSearch()"
-            style="display:none;border:none;background:none;cursor:pointer;color:var(--text3);
-                   font-size:16px;line-height:1;padding:0">✕</button>
-        </div>
-        <div id="global-search-dropdown"
-          style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;
-                 background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);
-                 box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:1000;max-height:420px;overflow-y:auto">
-        </div>
-      </div>
+      <div id="page-title" style="flex:1">Filaments</div>
       <div id="topbar-actions"></div>
       <!-- Toggle thème -->
       <button id="theme-toggle-btn" onclick="toggleDarkMode()" title="Basculer thème clair/sombre"
         style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;
                border-radius:50%;border:0.5px solid var(--border2);background:var(--bg3);
                cursor:pointer;font-size:16px;flex-shrink:0;transition:background 0.15s">🌙</button>
-      <!-- Bouton aide -->
-      <div style="position:relative;flex-shrink:0">
-        <button id="help-btn" onclick="toggleHelp()" title="Aide (F1)"
-          style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;
-                 border-radius:50%;border:0.5px solid var(--border2);background:var(--bg3);
-                 cursor:pointer;font-size:15px;font-weight:600;color:var(--text2);
-                 transition:background 0.15s">?</button>
-        <span onclick="toggleShortcutsHelp()" title="Raccourcis clavier (?)"
-          style="position:absolute;bottom:-4px;right:-4px;width:14px;height:14px;
-                 border-radius:50%;background:var(--accent);color:#fff;
-                 font-size:8px;font-weight:700;display:flex;align-items:center;
-                 justify-content:center;cursor:pointer;border:1.5px solid var(--bg)">⌨</span>
-      </div>
     </div>
     <div id="content"></div>
   </main>
@@ -171,58 +83,6 @@
 
 <!-- Overlay sidebar mobile -->
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
-
-<!-- ── Aide en ligne ── -->
-<div id="help-overlay" onclick="closeHelp()"
-  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:300"></div>
-<div id="help-drawer"
-  style="display:none;position:fixed;top:0;right:0;bottom:0;width:420px;max-width:100vw;
-         background:var(--bg2);border-left:0.5px solid var(--border2);z-index:301;
-         display:flex;flex-direction:column;transform:translateX(100%);
-         transition:transform 0.25s ease;box-shadow:-8px 0 24px rgba(0,0,0,0.12)">
-  <!-- Header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;
-              padding:16px 20px;border-bottom:0.5px solid var(--border2);flex-shrink:0">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">📖</span>
-      <span style="font-size:15px;font-weight:600">Aide PrintFlow-3D</span>
-    </div>
-    <button onclick="closeHelp()"
-      style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--text3);
-             width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center">✕</button>
-  </div>
-  <!-- Recherche -->
-  <div style="padding:12px 20px;border-bottom:0.5px solid var(--border2);flex-shrink:0">
-    <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);
-                border:0.5px solid var(--border2);border-radius:var(--radius);padding:0 10px">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" style="color:var(--text3);flex-shrink:0">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input id="help-search" type="text" placeholder="Rechercher dans l'aide…"
-        autocomplete="off" oninput="onHelpSearch(this.value)"
-        style="border:none;background:transparent;outline:none;font-size:13px;
-               color:var(--text);width:100%;padding:8px 0">
-    </div>
-  </div>
-  <!-- Navigation sections -->
-  <div id="help-nav" style="padding:8px 12px;border-bottom:0.5px solid var(--border2);
-       flex-shrink:0;display:flex;flex-wrap:wrap;gap:4px"></div>
-  <!-- Contenu -->
-  <div id="help-content" style="flex:1;overflow-y:auto;padding:20px"></div>
-</div>
-
-<!-- PRINTER INTERFACE MODAL -->
-<div id="printer-iframe-modal" class="iframe-modal hidden">
-  <div class="iframe-modal-header">
-    <span id="iframe-modal-title">Interface imprimante</span>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-sm" id="iframe-open-tab">Ouvrir dans un onglet</button>
-      <button class="btn btn-sm btn-close-modal" onclick="closePrinterIframe()">Fermer</button>
-    </div>
-  </div>
-  <iframe id="printer-iframe" src="" allowfullscreen></iframe>
-</div>
 
 <div id="modal-overlay" class="hidden" onclick="closeModal()"></div>
 <div id="modal" class="modal hidden"></div>
@@ -247,22 +107,10 @@ window.onerror = function(msg, src, line, col, err) {
 <script src="/js/api.js"></script>
 <script src="/js/nfc.js"></script>
 <script src="/js/components.js"></script>
-<script src="/js/tabs/dashboard.js"></script>
-<script src="/js/tabs/printers.js"></script>
-<script src="/js/tabs/prints.js"></script>
-<script src="/js/tabs/projects.js"></script>
 <script src="/js/tabs/filaments.js"></script>
 <script src="/js/tabs/spoolweights.js"></script>
-<script src="/js/tabs/library.js"></script>
-<script src="/js/tabs/maintenance.js"></script>
-<script src="/js/tabs/stats.js"></script>
 <script src="/js/tabs/settings.js"></script>
-  <script src="/js/search.js"></script>
-  <script src="/js/help.js"></script>
-  <script src="/js/tabs/quotes.js"></script>
-  <script src="/js/tabs/schedule.js"></script>
-  <script src="/js/tabs/gallery.js"></script>
-  <script src="/js/label-editor.js"></script>
+        <script src="/js/label-editor.js"></script>
     <script src="/js/tabs/history.js"></script>
 <script src="/js/app.js"></script>
   <script>

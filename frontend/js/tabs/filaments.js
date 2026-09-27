@@ -195,9 +195,7 @@ async function renderFilaments() {
   document.getElementById('page-title').textContent = 'Filaments';
   const activeAdv = countActiveFilAdvanced();
   document.getElementById('topbar-actions').innerHTML =
-    '<button class="btn" onclick="exportExcel(this)" data-url="/api/excel/filaments">&#8595; Excel</button> ' +
-    `${window._spoolmanEnabled ? '<button class="btn btn-sm" onclick="syncSpoolman()" style="margin-right:4px">↻ Sync Spoolman</button>' : ''}
-     <button class="btn btn-sm" onclick="openWeighingModal()" style="margin-right:4px">⚖ Pesée</button>
+    `<button class="btn btn-sm" onclick="openWeighingModal()" style="margin-right:4px">⚖ Pesée</button>
      <div style="position:relative;display:inline-block;margin-right:4px">
        <input id="filament-search" type="text" placeholder="Rechercher…"
          value="${_filterQuery}"
@@ -324,6 +322,26 @@ async function toggleShowArchived() {
   await renderFilaments();
 }
 
+// ── Bandeau stock faible (remplace l'alerte du tableau de bord) ──────────
+function renderLowStockBanner() {
+  if (!window._stockAlertEnabled) return '';
+  const threshold = window._stockAlertThreshold || 20;
+  const low = allFilaments.filter(function(f) {
+    return !f.archived && f.weight_total > 0 &&
+           (f.weight_remaining / f.weight_total * 100) <= threshold;
+  });
+  if (!low.length) return '';
+  const active = _filAdvanced.pct_max === String(threshold);
+  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;' +
+    'padding:10px 14px;margin-bottom:14px;border-radius:var(--radius);' +
+    'background:var(--warning-bg, #FEF3C7);color:var(--warning, #92400E);font-size:13px">' +
+    '<span>⚠ ' + low.length + ' bobine' + (low.length > 1 ? 's' : '') +
+    ' sous ' + threshold + ' % de stock</span>' +
+    '<button class="btn btn-sm" onclick="_filAdvanced.pct_max=' + (active ? "''" : "'" + threshold + "'") +
+    ';renderFilamentGrid()">' + (active ? 'Tout afficher' : 'Afficher') + '</button>' +
+  '</div>';
+}
+
 function renderFilamentGrid() {
   const content = document.getElementById('content');
   if (!allFilaments.length) {
@@ -365,7 +383,7 @@ function renderFilamentGrid() {
     return;
   }
 
-  content.innerHTML = renderFilAdvancedPanel() + Object.entries(grouped).map(([mat, filaments]) => `
+  content.innerHTML = renderLowStockBanner() + renderFilAdvancedPanel() + Object.entries(grouped).map(([mat, filaments]) => `
     <div class="card">
       <div class="card-header" style="cursor:pointer" onclick="setMaterialFilter('${mat}')"
            title="${_filterMat===mat ? 'Cliquer pour afficher toutes les matières' : 'Cliquer pour filtrer sur ' + mat}">
@@ -465,11 +483,6 @@ function renderFilamentGrid() {
                       style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
                       onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
                       Historique pesées
-                    </div>
-                    <div onclick="openFilamentPrintHistory(${f.id});closeFilamentMenu()"
-                      style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
-                      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-                      Impressions
                     </div>
                     <div onclick="openNfcScanModal(${f.id});closeFilamentMenu()"
                       style="padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text)"
@@ -627,7 +640,6 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
       ${window._showLocations ? `<div><label class="form-label">Emplacement</label><input id="ff-loc" value="${f.location||''}"></div>` : ''}
       <div><label class="form-label">Fournisseur</label><input id="ff-supplier" value="${f.supplier||''}" placeholder="ex: Amazon, Bambu..."></div>
       <div><label class="form-label">Date d'achat</label><input id="ff-purchase-date" type="date" value="${f.purchase_date ? f.purchase_date.slice(0,10) : ''}"></div>
-      ${window._spoolmanEnabled ? `<div><label class="form-label">ID Spoolman</label><input id="ff-spoolman" type="number" value="${f.spoolman_id||''}"></div>` : ''}
     </div>
     <div style="margin-bottom:14px">
       <label class="form-label">Notes</label>
@@ -710,7 +722,6 @@ async function saveFilament(id) {
     purchase_date:     document.getElementById('ff-purchase-date')?.value || null,
     elegoo_subtype:    document.getElementById('ff-elegoo-subtype').value || null,
     archived:          document.getElementById('ff-archive-toggle')?.dataset.archived === '1' ? 1 : 0,
-    spoolman_id:       document.getElementById('ff-spoolman')?.value || null,
     location:          document.getElementById('ff-loc')?.value || '',
     notes:             document.getElementById('ff-notes').value,
     finish_option:     document.getElementById('ff-finish').value !== 'Standard' ? document.getElementById('ff-finish').value : null,
@@ -1054,87 +1065,6 @@ function reopenWeighingForm() {
   }, 80);
 }
 
-async function openFilamentPrintHistory(filamentId) {
-  // Trouver le filament dans la liste
-  const fil = window._allFilaments?.find(f => f.id === filamentId);
-  const filName = fil ? fil.name + (fil.brand ? ' ('+fil.brand+')' : '') : 'Filament #' + filamentId;
-
-  openModal('<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Chargement…</div>',
-    'Impressions — ' + filName);
-
-  try {
-    // Récupérer les impressions depuis la table print_filaments ET filament_id direct
-    const prints = await API.get('/prints?filament_id=' + filamentId + '&limit=200').catch(() => []);
-
-    if (!prints.length) {
-      document.querySelector('#modal .modal-body, #modal > div:first-child') && null;
-      openModal(
-        '<div style="color:var(--text3);font-size:13px;text-align:center;padding:30px">Aucune impression avec ce filament</div>' +
-        '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>',
-        'Impressions — ' + filName
-      );
-      return;
-    }
-
-    // Calculs globaux
-    const done    = prints.filter(p => p.status === 'done');
-    const totalG  = prints.reduce((s,p) => s + (parseFloat(p.filament_used)||0), 0);
-    const totalH  = Math.round(prints.reduce((s,p) => s + (parseInt(p.actual_duration)||0), 0) / 60 * 10) / 10;
-    const totalC  = prints.reduce((s,p) => s + (parseFloat(p.real_cost)||0), 0);
-    const rate    = prints.length > 0 ? Math.round(done.length / prints.length * 100) : 0;
-
-    const summary =
-      '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius)">' +
-        '<span style="font-size:13px"><strong>' + prints.length + '</strong> impression' + (prints.length>1?'s':'') + '</span>' +
-        '<span style="font-size:13px;color:var(--success)"><strong>' + rate + '%</strong> réussite</span>' +
-        (totalG  > 0 ? '<span style="font-size:13px"><strong>' + Math.round(totalG) + 'g</strong> consommés</span>' : '') +
-        (totalH  > 0 ? '<span style="font-size:13px"><strong>' + totalH + 'h</strong></span>' : '') +
-        (totalC  > 0 ? '<span style="font-size:13px;color:var(--success)"><strong>' + totalC.toFixed(2) + '€</strong></span>' : '') +
-      '</div>';
-
-    const rows = prints.map(function(p) {
-      const icon = p.status === 'done' ? '✅' : p.status === 'failed' ? '❌' : p.status === 'cancelled' ? '⚪' : '🔄';
-      const dur  = p.actual_duration
-        ? (Math.floor(p.actual_duration/60) > 0 ? Math.floor(p.actual_duration/60)+'h' : '') +
-          (p.actual_duration%60 > 0 ? p.actual_duration%60+'min' : '')
-        : '—';
-      return '<tr style="cursor:pointer" onclick="closeModal();openPrintDetail(' + p.id + ')">' +
-        '<td style="font-size:12px">' + icon + '</td>' +
-        '<td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.name + '</td>' +
-        '<td style="color:var(--text3);font-size:12px">' + (p.printer_name||'—') + '</td>' +
-        '<td style="text-align:right;font-size:12px">' + (p.filament_used ? Math.round(p.filament_used)+'g' : '—') + '</td>' +
-        '<td style="text-align:right;font-size:12px;color:var(--text3)">' + dur + '</td>' +
-        '<td style="text-align:right;font-size:12px;color:var(--success)">' + (p.real_cost ? parseFloat(p.real_cost).toFixed(2)+'€' : '—') + '</td>' +
-        '<td style="font-size:11px;color:var(--text3)">' + fmtDate(p.created_at) + '</td>' +
-      '</tr>';
-    }).join('');
-
-    openModal(
-      summary +
-      '<div style="max-height:400px;overflow-y:auto">' +
-        '<table>' +
-          '<thead><tr>' +
-            '<th></th><th>Nom</th><th>Imprimante</th>' +
-            '<th style="text-align:right">Conso.</th>' +
-            '<th style="text-align:right">Durée</th>' +
-            '<th style="text-align:right">Coût</th>' +
-            '<th>Date</th>' +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>' +
-      '</div>' +
-      '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>',
-      'Impressions — ' + filName
-    );
-  } catch(e) {
-    openModal(
-      '<div style="color:var(--danger);text-align:center;padding:20px">' + e.message + '</div>' +
-      '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>',
-      'Impressions — ' + filName
-    );
-  }
-}
-
 async function openWeighingHistory(filamentId) {
   const fil = allFilaments.find(f => f.id == filamentId);
   const filamentName = fil ? fil.name : 'Filament #' + filamentId;
@@ -1263,16 +1193,6 @@ async function openWeighingHistory(filamentId) {
 
   } catch (e) { toast('Erreur : ' + e.message, 'error'); }
 }
-
-async function syncSpoolman() {
-  try {
-    toast('Synchronisation Spoolman…');
-    const r = await API.post('/spoolman/sync', {});
-    toast(`Spoolman : ${r.imported} importées, ${r.updated} mises à jour`, 'success');
-    renderFilaments();
-  } catch (e) { toast('Spoolman inaccessible : ' + e.message, 'error'); }
-}
-
 
 // ── Export CSV ────────────────────────────────────────────
 function exportFilamentsCSV() {

@@ -1,27 +1,13 @@
 const TAB_RENDERERS = {
-  dashboard:   renderDashboard,
-  printers:    renderPrinters,
-  prints:      renderPrints,
-  projects:    renderProjects,
   filaments:    renderFilaments,
   spoolweights: renderSpoolweights,
-  library:     renderLibrary,
-  maintenance: renderMaintenance,
-  stats:       renderStats,
-  settings:    renderSettings,
-  history:     renderHistory,
-  quotes:      renderQuotes,
-  schedule:    renderSchedule,
-  gallery:     renderGallery,
+  settings:     renderSettings,
+  history:      renderHistory,
 };
 
-let currentTab = 'dashboard';
+let currentTab = 'filaments';
 
 function switchTab(tab) {
-  // Stopper le polling Moonraker si on quitte l'onglet Imprimantes
-  if (currentTab === 'printers' && tab !== 'printers') {
-    if (typeof mrStopAll === 'function') mrStopAll();
-  }
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === tab);
@@ -36,24 +22,6 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
     switchTab(el.dataset.tab);
   });
 });
-
-async function checkSpoolmanStatus() {
-  const badge = document.getElementById('spoolman-badge');
-  if (!badge) return;
-  // Masquer entièrement si Spoolman est désactivé
-  if (!window._spoolmanEnabled) {
-    badge.style.display = 'none';
-    return;
-  }
-  badge.style.display = '';
-  try {
-    const r = await fetch('/api/spoolman/status');
-    const data = await r.json();
-    const label = badge.querySelector('.status-label');
-    badge.className = 'spoolman-status ' + (data.connected ? 'online' : 'offline');
-    label.textContent = data.connected ? 'Spoolman ✓' : 'Spoolman';
-  } catch (_) {}
-}
 
 // Init
 // ── Thèmes de couleur ────────────────────────────────────
@@ -127,12 +95,9 @@ function applyColorMode(mode, darkFrom, darkTo) {
 }
 
 // Valeurs par défaut — évite tout affichage parasite avant le chargement des settings
-window._spoolmanEnabled        = false;
 window._showPrices             = false;
 window._showLocations          = false;
 window._stockAlertEnabled      = false;
-window._maintenanceAlertEnabled = false;
-window._projectsEnabled        = true;  // activé par défaut
 
 // Charger les settings puis démarrer l'interface
 (async () => {
@@ -147,72 +112,27 @@ window._projectsEnabled        = true;  // activé par défaut
       if (logoEl) logoEl.textContent = s.app_name;
       document.title = s.app_name;
     }
-    window._spoolmanEnabled        = s.spoolman_enabled    === 'true';
     window._showPrices             = s.show_prices         !== 'false';
     window._showLocations          = s.show_locations      !== 'false';
-    window._stockAlertEnabled      = s.stock_alert_enabled === 'true';
-    window._maintenanceAlertEnabled = s.maintenance_alert_enabled === 'true';
-    window._projectsEnabled        = s.projects_enabled    !== 'false';
-    window._quotesEnabled          = s.quotes_enabled      !== 'false';
-    window._galleryEnabled         = s.gallery_enabled     !== 'false';
-
-    // Appliquer la visibilité de l'onglet Devis
-    const navQuotes = document.getElementById('nav-quotes');
-    if (navQuotes) navQuotes.style.display = window._quotesEnabled ? '' : 'none';
-
-    // Appliquer la visibilité de l'onglet Projets
-    const navProjects = document.getElementById('nav-projects');
-    if (navProjects) navProjects.style.display = window._projectsEnabled ? '' : 'none';
-
-    // Appliquer la visibilité de l'onglet Galerie
-    const navGallery = document.getElementById('nav-gallery');
-    if (navGallery) navGallery.style.display = window._galleryEnabled ? '' : 'none';
+    window._stockAlertEnabled      = s.stock_alert_enabled !== 'false';
+    window._stockAlertThreshold    = parseInt(s.stock_alert_threshold) || 20;
   } catch(_) {}
 
   // Auth optionnelle — ne bloque jamais le démarrage
   try { checkAuth(); } catch(_) {}
 
-  // Démarrer sur le dashboard ou sur la cible du hash si présent
-  const hash = window.location.hash; // ex: #library/42 ou #filament/5
-  if (hash && hash.startsWith('#library/')) {
-    const objectId = parseInt(hash.replace('#library/', ''));
-    if (objectId) {
-      switchTab('library');
-      setTimeout(function() {
-        if (typeof openObjectDetail === 'function') openObjectDetail(objectId);
-      }, 600);
-    } else {
-      switchTab('dashboard');
-    }
-  } else if (hash && hash.startsWith('#filament/')) {
+  // Démarrer sur les filaments, ou sur la fiche ciblée par le hash (#filament/5)
+  const hash = window.location.hash;
+  switchTab('filaments');
+  if (hash && hash.startsWith('#filament/')) {
     const filamentId = parseInt(hash.replace('#filament/', ''));
     if (filamentId) {
-      switchTab('filaments');
       setTimeout(function() {
         if (typeof openFilamentForm === 'function') openFilamentForm(filamentId);
       }, 800);
-    } else {
-      switchTab('dashboard');
     }
-  } else {
-    switchTab('dashboard');
   }
-
-  checkSpoolmanStatus();
-  setInterval(checkSpoolmanStatus, 30000);
 })();
-
-// ── Export CSV ────────────────────────────────────────────────────────────
-function exportCSV(type) {
-  const labels = { prints: 'impressions', filaments: 'filaments', stats: 'stats' };
-  toast('Export ' + (labels[type]||type) + ' en cours…');
-  const a = document.createElement('a');
-  a.href = '/api/export/' + type;
-  a.download = '';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
 
 // ── Sidebar mobile/tablette ───────────────────────────────────────────────
 function toggleSidebar() {
@@ -250,20 +170,10 @@ updateHamburger();
 
 // ── Raccourcis clavier ─────────────────────────────────────────────────────
 const KB_SHORTCUTS = [
-  { key: 'd', tab: 'dashboard',   label: 'Tableau de bord' },
-  { key: 'i', tab: 'printers',    label: 'Imprimantes' },
-  { key: 'p', tab: 'prints',      label: 'Impressions' },
-  { key: 'l', tab: 'planning',    label: 'Planning',      tabId: 'schedule' },
   { key: 'f', tab: 'filaments',    label: 'Filaments' },
   { key: 'w', tab: 'spoolweights', label: 'Bobines réf.' },
-  { key: 'r', tab: 'projects',    label: 'Projets' },
-  { key: 'b', tab: 'library',     label: 'Bibliothèque' },
-  { key: 'm', tab: 'maintenance', label: 'Maintenance' },
-  { key: 's', tab: 'stats',       label: 'Statistiques' },
-  { key: 'q', tab: 'quotes',      label: 'Devis' },
-  { key: 'g', tab: 'gallery',     label: 'Galerie' },
-  { key: 'h', tab: 'history',     label: 'Historique' },
-  { key: ',', tab: 'settings',    label: 'Paramètres' },
+  { key: 'h', tab: 'history',      label: 'Historique' },
+  { key: ',', tab: 'settings',     label: 'Paramètres' },
 ];
 
 document.addEventListener('keydown', function(e) {
@@ -271,7 +181,6 @@ document.addEventListener('keydown', function(e) {
   const tag = document.activeElement?.tagName?.toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
   if (document.getElementById('modal-overlay')?.style.display === 'flex') return;
-  if (document.getElementById('help-drawer')?.style.transform === 'translateX(0px)') return;
 
   // ? → afficher la cheatsheet des raccourcis
   if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
@@ -345,19 +254,6 @@ function toggleShortcutsHelp() {
     '<div style="border-bottom:0.5px solid var(--border);margin-bottom:8px;padding-bottom:8px">' +
       rows +
     '</div>' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">' +
-      '<span style="color:var(--text2)">Aide</span>' +
-      '<kbd style="background:var(--bg3);border:0.5px solid var(--border2);' +
-      'border-radius:4px;padding:2px 8px;font-family:monospace;font-size:11px;font-weight:600">F1</kbd>' +
-    '</div>' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-top:4px">' +
-      '<span style="color:var(--text2)">Recherche</span>' +
-      '<span style="display:flex;gap:4px">' +
-        '<kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 8px;font-family:monospace;font-size:11px;font-weight:600">/</kbd>' +
-        '<span style="color:var(--text3);font-size:11px">ou</span>' +
-        '<kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 8px;font-family:monospace;font-size:11px;font-weight:600">⌘K</kbd>' +
-      '</span>' +
-    '</div>' +
     '<div style="margin-top:10px;font-size:11px;color:var(--text3);text-align:center">' +
       'Appuyez sur <kbd style="background:var(--bg3);border:0.5px solid var(--border2);' +
       'border-radius:3px;padding:1px 5px;font-size:10px;font-weight:600">?</kbd> pour fermer' +
@@ -405,13 +301,6 @@ function toggleDarkMode() {
     setTimeout(update, 100);
   }
 })();
-
-// ── Export Excel ──────────────────────────────────────────────────────────
-function exportExcel(btn) {
-  const url = btn.dataset.url;
-  if (!url) return;
-  window.location.href = url;
-}
 
 // ── Sections repliables ───────────────────────────────────────────────────
 function toggleCollapse(sectionId) {
