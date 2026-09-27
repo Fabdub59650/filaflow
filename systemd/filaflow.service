@@ -1,13 +1,13 @@
 [Unit]
-Description=PrintFlow - Gestion impressions 3D
+Description=FilaFlow - Gestion du stock de filament
 After=network.target mariadb.service pcscd.service
 Wants=mariadb.service
-After=pcscd.service
+Conflicts=printflow.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/printflow/backend
+WorkingDirectory=/opt/filaflow/backend
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5
@@ -16,7 +16,6 @@ StartLimitBurst=5
 StandardOutput=journal
 StandardError=journal
 Environment=NODE_ENV=production
-Environment=LIBRARY_PATH=/opt/printflow/library
 
 [Install]
 WantedBy=multi-user.target

@@ -1,95 +1,61 @@
 #!/bin/bash
+# ── FilaFlow — Installation sur Raspberry Pi ─────────────────────
+# Usage : sudo bash scripts/install.sh
+#
+# Sur un Pi où PrintFlow est déjà installé :
+#   - la configuration Nginx existante est conservée (elle relaie déjà
+#     vers 127.0.0.1:3000, le port de FilaFlow) ;
+#   - le service PrintFlow est arrêté et désactivé (même port, même lecteur
+#     NFC), sans rien supprimer : retour arrière possible à tout moment.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+INSTALL_DIR="/opt/filaflow"
+DB_NAME="filaflow"
+DB_USER="filaflow"
+DB_PASS="${DB_PASS:-filaflow_secret}"
+VERSION=$(python3 -c "import json;print(json.load(open('${PROJECT_DIR}/backend/package.json'))['version'])" 2>/dev/null || echo "?")
+
+if [ "$EUID" -ne 0 ]; then echo "❌ À lancer avec sudo."; exit 1; fi
+
 echo "========================================"
-echo "  PrintFlow v2.7.0 — Installation Raspberry Pi"
+echo "  FilaFlow v${VERSION} — Installation"
 echo "========================================"
 echo "  Dossier projet : ${PROJECT_DIR}"
 echo ""
 
-# ── Variables ─────────────────────────────────────────────
-INSTALL_DIR="/opt/printflow"
-LIBRARY_DIR="/opt/printflow/library"
-DB_NAME="printflow"
-DB_USER="printflow"
-DB_PASS="printflow_secret"
-SERVICE_USER="${SUDO_USER:-pi}"
-
 # ── 1. Dépendances système ────────────────────────────────
-echo "[1/8] Mise à jour et installation des dépendances..."
+echo "[1/7] Dépendances système..."
 apt-get update -qq
-apt-get install -y -qq curl nginx mariadb-server nodejs npm cifs-utils rsync
-
-# Node.js >= 18 requis
+apt-get install -y -qq curl nginx mariadb-server nodejs npm cifs-utils rsync unzip \
+  pcscd pcsc-tools libpcsclite-dev build-essential python3 openssl
 NODE_VER=$(node --version 2>/dev/null | cut -d'v' -f2 | cut -d'.' -f1)
 if [ -z "$NODE_VER" ] || [ "$NODE_VER" -lt 18 ]; then
   echo "  Node.js 18+ requis. Installation via NodeSource..."
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
   apt-get install -y nodejs
 fi
-echo "  ✓ Dépendances OK (Node.js $(node --version))"
+echo "  ✓ Node.js $(node --version)"
 
 # ── 2. MariaDB ────────────────────────────────────────────
-echo "[2/8] Configuration de MariaDB..."
-systemctl enable mariadb --quiet
-systemctl start mariadb
-
-# Créer la base et l'utilisateur local
+echo "[2/7] Base de données..."
+systemctl enable --now mariadb --quiet
 mariadb -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mariadb -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
-mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
-
-# Créer aussi l'utilisateur avec accès réseau (depuis n'importe quelle IP du LAN)
 mariadb -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';"
+mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
 mariadb -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'%';"
 mariadb -e "FLUSH PRIVILEGES;"
+mariadb --default-character-set=utf8mb4 ${DB_NAME} < "${PROJECT_DIR}/sql/schema.sql"
+echo "  ✓ Base '${DB_NAME}' prête (schéma idempotent)"
 
-# Configurer MariaDB pour écouter sur toutes les interfaces
-# (par défaut bind-address = 127.0.0.1)
-MARIADB_CONF=""
-for f in /etc/mysql/mariadb.conf.d/50-server.cnf \
-          /etc/mysql/my.cnf \
-          /etc/mysql/mysql.conf.d/mysqld.cnf; do
-  [ -f "$f" ] && MARIADB_CONF="$f" && break
-done
-
-if [ -n "$MARIADB_CONF" ]; then
-  # Commenter la ligne bind-address existante et en ajouter une nouvelle
-  sed -i 's/^bind-address\s*=.*/# bind-address = 127.0.0.1  # modifié par PrintFlow/' "$MARIADB_CONF"
-  # Ajouter bind-address = 0.0.0.0 dans la section [mysqld] si pas déjà présent
-  if ! grep -q "^bind-address\s*=\s*0\.0\.0\.0" "$MARIADB_CONF"; then
-    sed -i '/^\[mysqld\]/a bind-address = 0.0.0.0' "$MARIADB_CONF"
-  fi
-  echo "  ✓ MariaDB configuré pour écouter sur toutes les interfaces ($MARIADB_CONF)"
-else
-  # Créer un fichier de configuration dédié
-  cat > /etc/mysql/mariadb.conf.d/99-printflow-network.cnf << 'MYCNF'
-[mysqld]
-bind-address = 0.0.0.0
-MYCNF
-  echo "  ✓ MariaDB configuré via /etc/mysql/mariadb.conf.d/99-printflow-network.cnf"
-fi
-
-# Redémarrer MariaDB pour appliquer la config réseau
-systemctl restart mariadb
-sleep 2
-
-mariadb ${DB_NAME} < "${PROJECT_DIR}/sql/schema.sql"
-echo "  ✓ Base de données prête"
-echo "  ✓ Accès réseau MariaDB activé (port 3306)"
-
-# ── 3. pcscd + polkit pour ACR122U ───────────────────────
-echo "[3/8] Configuration NFC (pcscd + polkit)..."
-apt-get install -y -qq pcscd pcsc-tools libpcsclite-dev build-essential python3
-
-systemctl enable pcscd --quiet
-systemctl start pcscd
-
+# ── 3. NFC (ACR122U) ──────────────────────────────────────
+echo "[3/7] Lecteur NFC..."
+systemctl enable --now pcscd --quiet
 mkdir -p /etc/polkit-1/rules.d
-cat > /etc/polkit-1/rules.d/99-pcscd-printflow.rules << 'POLKIT'
+cat > /etc/polkit-1/rules.d/99-pcscd-filaflow.rules << 'POLKIT'
 polkit.addRule(function(action, subject) {
     if (action.id == "org.debian.pcsc-lite.access_pcsc" ||
         action.id == "org.debian.pcsc-lite.access_card") {
@@ -97,130 +63,91 @@ polkit.addRule(function(action, subject) {
     }
 });
 POLKIT
-
-# Ajouter l'utilisateur au groupe plugdev pour accès USB
-usermod -aG plugdev ${SERVICE_USER} 2>/dev/null || true
-
-# Blacklister les modules nfc kernel qui hijackent l'ACR122U
-# (indispensable sur Debian Trixie / Ubuntu 24+)
 cat > /etc/modprobe.d/blacklist-nfc.conf << 'MODEOF'
 blacklist pn533
 blacklist pn533_usb
 blacklist nfc
 MODEOF
 modprobe -r pn533_usb pn533 nfc 2>/dev/null || true
+echo "  ✓ pcscd actif, modules noyau NFC blacklistés"
 
-echo "  ✓ pcscd démarré"
-echo "  ✓ Règle polkit créée"
-echo "  ✓ Modules nfc kernel blacklistés"
+# ── 4. Fichiers ───────────────────────────────────────────
+echo "[4/7] Copie des fichiers dans ${INSTALL_DIR}..."
+mkdir -p ${INSTALL_DIR}/backups
+rsync -a --exclude 'node_modules' --exclude '.env' --exclude '.git' \
+  "${PROJECT_DIR}/backend" "${PROJECT_DIR}/frontend" "${PROJECT_DIR}/sql" "${PROJECT_DIR}/scripts" \
+  ${INSTALL_DIR}/
+if [ ! -f ${INSTALL_DIR}/backend/.env ]; then
+  cat > ${INSTALL_DIR}/backend/.env << ENVEOF
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASS}
+DB_NAME=${DB_NAME}
+PORT=3000
+NODE_ENV=production
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+ENVEOF
+  chmod 600 ${INSTALL_DIR}/backend/.env
+  echo "  ✓ .env créé (nouvelle clé de chiffrement)"
+else
+  echo "  ✓ .env existant conservé"
+fi
 
-# ── 4. Copie des fichiers ─────────────────────────────────
-echo "[4/8] Installation des fichiers..."
-mkdir -p ${INSTALL_DIR}
-mkdir -p ${LIBRARY_DIR}
-cp -r "${PROJECT_DIR}/backend"  ${INSTALL_DIR}/
-cp -r "${PROJECT_DIR}/frontend" ${INSTALL_DIR}/
-chown -R ${SERVICE_USER}:${SERVICE_USER} ${INSTALL_DIR}
-echo "  ✓ Fichiers copiés"
-echo "  ✓ Dossier bibliothèque : ${LIBRARY_DIR}"
-
-# ── 5. Dépendances Node.js ───────────────────────────────
-echo "[5/8] Installation des modules Node.js..."
+# ── 5. Modules Node.js ────────────────────────────────────
+echo "[5/7] Modules Node.js..."
 cd ${INSTALL_DIR}/backend
-sudo -u ${SERVICE_USER} npm install --omit=dev --quiet
-# Installer web-push pour les notifications push
-npm install web-push --save --quiet 2>/dev/null || true
+npm install --omit=dev --quiet
 echo "  ✓ Modules installés"
 
-# Générer les clés VAPID pour les notifications push
-echo "  Génération des clés VAPID..."
-node -e "
-try {
-  const wp = require('web-push');
-  const db = require('./db');
-  const k  = wp.generateVAPIDKeys();
-  Promise.all([
-    db.query('UPDATE settings SET value=? WHERE key_name=?', [k.publicKey,  'vapid_public']),
-    db.query('UPDATE settings SET value=? WHERE key_name=?', [k.privateKey, 'vapid_private'])
-  ]).then(() => { console.log('  ✓ Clés VAPID générées'); process.exit(0); })
-    .catch(() => process.exit(0));
-} catch(e) { console.log('  ⚠ web-push non disponible, notifications désactivées'); process.exit(0); }
-" 2>/dev/null || true
-
-# ── 6. Nginx ─────────────────────────────────────────────
-echo "[6/8] Configuration de Nginx..."
-cp "${PROJECT_DIR}/nginx/printflow.conf" /etc/nginx/sites-available/printflow
-ln -sf /etc/nginx/sites-available/printflow /etc/nginx/sites-enabled/printflow
-rm -f /etc/nginx/sites-enabled/default
-nginx -t 2>/dev/null && echo "  ✓ Config Nginx valide"
-systemctl enable nginx --quiet
-systemctl restart nginx
-echo "  ✓ Nginx démarré"
-
-# ── 7. Service systemd ───────────────────────────────────
-echo "[7/8] Configuration du service systemd..."
-cp "${PROJECT_DIR}/systemd/printflow.service" /etc/systemd/system/printflow.service
-sed -i "s/User=pi/User=${SERVICE_USER}/" /etc/systemd/system/printflow.service
-# Injecter le chemin de la bibliothèque dans le service
-sed -i "s|Environment=NODE_ENV=production|Environment=NODE_ENV=production\nEnvironment=LIBRARY_PATH=${LIBRARY_DIR}|" \
-  /etc/systemd/system/printflow.service
-systemctl daemon-reload
-systemctl enable printflow --quiet
-systemctl start printflow
-echo "  ✓ Service PrintFlow démarré"
-
-# ── 8. Vérification finale ───────────────────────────────
-echo "[8/8] Vérification..."
-sleep 3
-
-if systemctl is-active --quiet printflow; then
-  IP=$(hostname -I | awk '{print $1}')
-  echo ""
-  echo "========================================"
-  echo "  ✅ PrintFlow v2.7.0 installé avec succès !"
-  echo "========================================"
-  echo ""
-  echo "  Accès local      : http://localhost"
-  echo "  Accès réseau     : http://${IP}"
-  echo "  Spoolman UI      : http://${IP}/spoolman"
-  echo "  Bibliothèque     : ${LIBRARY_DIR}"
-  echo ""
-  echo "  Commandes utiles :"
-  echo "    sudo systemctl status printflow"
-  echo "    sudo journalctl -u printflow -f"
-  echo "    sudo mariadb ${DB_NAME}"
-  echo ""
-  echo "  Base de données :"
-  echo "    Hôte réseau  : ${IP}:3306"
-  echo "    Utilisateur  : ${DB_USER}"
-  echo "    Mot de passe : ${DB_PASS}"
-  echo "    Base         : ${DB_NAME}"
-  echo "    (modifiables dans ${INSTALL_DIR}/backend/.env)"
-  echo ""
-  # Proposer HTTPS
-  echo ""
-  echo "  ──────────────────────────────────────"
-  read -p "  Configurer HTTPS ? (recommandé pour les notifications push) [o/N] " do_https
-  if [[ "$do_https" == "o" || "$do_https" == "O" ]]; then
-    bash "${SCRIPT_DIR}/setup-https.sh"
-  else
-    echo "  → Configurable plus tard : sudo bash ${SCRIPT_DIR}/setup-https.sh"
-    echo ""
-  fi
-
-  # ── Kiosque tactile (optionnel) ──────────────────────────
-  echo "  ──────────────────────────────────────"
-  echo "  Mode kiosque — écran tactile dédié"
-  echo "  (Xorg + Openbox + Chromium, ~300 Mo)"
-  read -p "  Installer le mode kiosque tactile ? [o/N] " do_kiosk
-  if [[ "$do_kiosk" == "o" || "$do_kiosk" == "O" ]]; then
-    bash "${SCRIPT_DIR}/setup-kiosk.sh"
-  else
-    echo "  → Configurable plus tard : sudo bash ${SCRIPT_DIR}/setup-kiosk.sh"
-    echo ""
-  fi
+# ── 6. Nginx ──────────────────────────────────────────────
+echo "[6/7] Nginx..."
+if [ -e /etc/nginx/sites-enabled/printflow ]; then
+  echo "  ✓ Configuration PrintFlow existante détectée : conservée telle quelle"
+  echo "    (HTTPS, Adminer, Cockpit… elle relaie déjà vers le port 3000)"
+elif [ -e /etc/nginx/sites-enabled/filaflow ]; then
+  echo "  ✓ Configuration FilaFlow déjà en place"
 else
-  echo "  ⚠ Le service n'a pas démarré."
-  echo "  Logs : sudo journalctl -u printflow -n 50"
-  exit 1
+  cp "${PROJECT_DIR}/nginx/filaflow.conf" /etc/nginx/sites-available/filaflow
+  ln -sf /etc/nginx/sites-available/filaflow /etc/nginx/sites-enabled/filaflow
+  rm -f /etc/nginx/sites-enabled/default
+  nginx -t && systemctl enable nginx --quiet && systemctl restart nginx
+  echo "  ✓ Nginx configuré (HTTP). HTTPS : sudo bash ${SCRIPT_DIR}/setup-https.sh"
+fi
+
+# ── 7. Service systemd ────────────────────────────────────
+echo "[7/7] Service systemd..."
+if systemctl list-unit-files printflow.service >/dev/null 2>&1 && \
+   systemctl list-unit-files printflow.service | grep -q printflow; then
+  echo "  PrintFlow est installé sur ce Pi (même port 3000, même lecteur NFC)."
+  read -p "  Arrêter et désactiver PrintFlow maintenant ? (rien n'est supprimé) [o/N] " stop_pf
+  if [[ "$stop_pf" == "o" || "$stop_pf" == "O" ]]; then
+    systemctl disable --now printflow --quiet || true
+    echo "  ✓ PrintFlow arrêté et désactivé"
+  else
+    echo "  ⚠ FilaFlow ne sera pas démarré tant que PrintFlow tourne."
+    echo "    Plus tard : sudo systemctl disable --now printflow && sudo systemctl enable --now filaflow"
+  fi
+fi
+cp "${PROJECT_DIR}/systemd/filaflow.service" /etc/systemd/system/filaflow.service
+systemctl daemon-reload
+systemctl enable filaflow --quiet
+if ! systemctl is-active --quiet printflow 2>/dev/null; then
+  systemctl restart filaflow
+  sleep 4
+  if systemctl is-active --quiet filaflow; then
+    IP=$(hostname -I | awk '{print $1}')
+    echo ""
+    echo "========================================"
+    echo "  ✅ FilaFlow v${VERSION} installé et démarré"
+    echo "========================================"
+    echo "  Accès        : http://${IP}  (ou votre adresse HTTPS habituelle)"
+    echo "  Logs         : sudo journalctl -u filaflow -f"
+    echo "  Données      : sudo bash ${INSTALL_DIR}/scripts/migrate-from-printflow.sh"
+    echo "  Retour à PrintFlow : sudo systemctl disable --now filaflow && sudo systemctl enable --now printflow"
+    echo ""
+  else
+    echo "  ⚠ Le service n'a pas démarré : sudo journalctl -u filaflow -n 50"
+    exit 1
+  fi
 fi

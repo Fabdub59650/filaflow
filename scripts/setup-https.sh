@@ -1,17 +1,17 @@
 #!/bin/bash
-# ── PrintFlow — Configuration HTTPS ──────────────────────
+# ── FilaFlow — Configuration HTTPS ──────────────────────
 # Usage : sudo bash scripts/setup-https.sh
 # Génère un certificat SSL auto-signé et configure Nginx en HTTPS
 
 set -e
 
-INSTALL_DIR="/opt/printflow"
-SSL_DIR="/etc/nginx/ssl/printflow"
-NGINX_CONF="/etc/nginx/sites-available/printflow"
+INSTALL_DIR="/opt/filaflow"
+SSL_DIR="/etc/nginx/ssl/filaflow"
+NGINX_CONF="/etc/nginx/sites-available/filaflow"
 
 echo ""
 echo "╔══════════════════════════════════════╗"
-echo "║   PrintFlow — Configuration HTTPS    ║"
+echo "║   FilaFlow — Configuration HTTPS    ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
@@ -50,7 +50,7 @@ openssl req -x509 -nodes -days 3650 \
   -newkey rsa:2048 \
   -keyout "$SSL_DIR/privkey.pem" \
   -out    "$SSL_DIR/fullchain.pem" \
-  -subj "/CN=printflow.local/O=PrintFlow/OU=Local" \
+  -subj "/CN=printflow.local/O=FilaFlow/OU=Local" \
   -addext "subjectAltName=IP:${LOCAL_IP},DNS:${HOSTNAME}.local,DNS:printflow.local" \
   2>/dev/null
 
@@ -60,7 +60,7 @@ echo "  ✓ Certificat généré dans $SSL_DIR"
 
 echo "[3/4] Configuration Nginx HTTPS..."
 cat > "$NGINX_CONF" << NGINXEOF
-# PrintFlow — Configuration Nginx avec HTTPS
+# FilaFlow — Configuration Nginx avec HTTPS
 # Générée par setup-https.sh le $(date '+%d/%m/%Y')
 
 # Redirection HTTP → HTTPS
@@ -90,7 +90,7 @@ server {
     # Taille max upload (fichiers STL, 3MF, etc.)
     client_max_body_size 350M;
 
-    # Proxy vers PrintFlow Node.js
+    # Proxy vers FilaFlow Node.js
     location / {
         proxy_pass         http://localhost:3000;
         proxy_http_version 1.1;
@@ -123,7 +123,7 @@ else
 fi
 
 # Exporter le certificat pour les appareils clients
-CERT_EXPORT="$INSTALL_DIR/printflow-ca.crt"
+CERT_EXPORT="$INSTALL_DIR/filaflow-ca.crt"
 cp "$SSL_DIR/fullchain.pem" "$CERT_EXPORT"
 chmod 644 "$CERT_EXPORT"
 
@@ -132,7 +132,7 @@ echo "╔═══════════════════════�
 echo "║   ✅  HTTPS configuré avec succès !                      ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "  🔒 PrintFlow accessible sur :"
+echo "  🔒 FilaFlow accessible sur :"
 echo "     https://$LOCAL_IP"
 echo ""
 echo "  ⚠  Le navigateur affichera un avertissement la première fois."
