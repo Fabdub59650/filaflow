@@ -26,7 +26,7 @@ function showLoginModal() {
   div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999';
   div.innerHTML =
     '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:32px;min-width:320px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">' +
-      '<div style="font-size:16px;font-weight:600;margin-bottom:4px">PrintFlow</div>' +
+      '<div style="font-size:16px;font-weight:600;margin-bottom:4px">FilaFlow</div>' +
       '<div style="font-size:13px;color:var(--text3);margin-bottom:20px">Connexion requise</div>' +
       '<input id="login-pwd" type="password" placeholder="Mot de passe" style="width:100%;margin-bottom:12px" ' +
         'onkeydown="if(event.key===\'Enter\')doLogin()">' +

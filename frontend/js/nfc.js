@@ -264,7 +264,7 @@ function _updateScanModal(data, prefillFilamentId) {
       '</div>';
     actions.innerHTML =
       '<button class="btn btn-sm btn-primary" onclick="_scanModalActive=false;closeModal();openWeighingModal(' + f.id + ')">⚖ Peser</button>' +
-      '<button class="btn btn-sm" onclick="nfcWriteToCard(' + f.id + ')">✍ Écrire PrintFlow</button>' +
+      '<button class="btn btn-sm" onclick="nfcWriteToCard(' + f.id + ')">✍ Écrire FilaFlow</button>' +
       '<button class="btn btn-sm" onclick="nfcWriteElegoo(' + f.id + ')" style="background:var(--accent-bg);color:var(--accent);font-weight:500">◈ Écrire ELEGOO</button>' +
       '<button class="btn btn-sm" onclick="nfcDumpPages()" title="Lire les bytes bruts pages 16-24">🔍 Dump</button>' +
       '<button class="btn btn-sm btn-danger" onclick="nfcUnlinkFilament(' + f.id + ')">Délier</button>';
@@ -393,7 +393,7 @@ async function nfcWriteElegoo(filamentId) {
       const f = card.filament;
       actions.innerHTML =
         '<button class="btn btn-sm btn-primary" onclick="_scanModalActive=false;closeModal();openWeighingModal(' + f.id + ')">⚖ Peser</button>' +
-        '<button class="btn btn-sm" onclick="nfcWriteToCard(' + f.id + ')">✍ Écrire PrintFlow</button>' +
+        '<button class="btn btn-sm" onclick="nfcWriteToCard(' + f.id + ')">✍ Écrire FilaFlow</button>' +
         '<button class="btn btn-sm" onclick="nfcWriteElegoo(' + f.id + ')" style="background:var(--accent-bg);color:var(--accent);font-weight:500">◈ Écrire ELEGOO</button>' +
         '<button class="btn btn-sm btn-danger" onclick="nfcUnlinkFilament(' + f.id + ')">Délier</button>';
     }
@@ -421,7 +421,7 @@ async function nfcReadCurrentCard() {
         </div>`;
     } else {
       result.innerHTML = `<div style="font-size:12px;color:var(--text3);text-align:center">
-        Aucune donnée PrintFlow sur cette puce (UID : ${r.uid})</div>`;
+        Aucune donnée FilaFlow sur cette puce (UID : ${r.uid})</div>`;
     }
   } catch (e) { toast('Erreur lecture : ' + e.message, 'error'); }
 }

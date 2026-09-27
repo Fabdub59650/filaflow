@@ -1247,7 +1247,7 @@ function exportFilamentsCSV() {
   const a    = document.createElement('a');
   const date = new Date().toISOString().slice(0,10);
   a.href     = url;
-  a.download = 'printflow_filaments_' + date + '.csv';
+  a.download = 'filaflow_filaments_' + date + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1274,7 +1274,7 @@ function exportFilamentsPDF() {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('PrintFlow — Inventaire filaments', 14, 13);
+  doc.text('FilaFlow — Inventaire filaments', 14, 13);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text('Exporté le ' + date + ' — ' + filaments.length + ' bobine(s)', 200, 13);
@@ -1395,10 +1395,10 @@ function exportFilamentsPDF() {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(160, 160, 155);
-    doc.text('PrintFlow v1.8.0 — Page ' + i + ' / ' + pageCount, 14, 205);
+    doc.text('FilaFlow — Page ' + i + ' / ' + pageCount, 14, 205);
   }
 
-  doc.save('printflow_filaments_' + new Date().toISOString().slice(0,10) + '.pdf');
+  doc.save('filaflow_filaments_' + new Date().toISOString().slice(0,10) + '.pdf');
   toast('Export PDF téléchargé', 'success');
 }
 
@@ -1640,7 +1640,7 @@ function openFilamentQR(id) {
   const f = allFilaments.find(function(x) { return x.id === id; });
   if (!f) return;
 
-  // URL qui ouvre directement la fiche filament dans PrintFlow
+  // URL qui ouvre directement la fiche filament dans FilaFlow
   const url = window.location.origin + '/#filament/' + id;
 
   const pct = f.weight_total > 0 ? Math.round(f.weight_remaining / f.weight_total * 100) : 0;
