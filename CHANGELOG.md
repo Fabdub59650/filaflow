@@ -1,5 +1,16 @@
 # Changelog — FilaFlow
 
+## 1.7.0 — septembre 2026 — rapport de sauvegarde par email
+
+- Paramètres › Sauvegarde : rapport par email « Après chaque sauvegarde », « En cas d'erreur
+  uniquement » ou « Désactivé », configuration SMTP (mot de passe chiffré) et bouton « Envoyer un test »
+- Nouveau module backend/mailer.js (nodemailer), limité au rapport de sauvegarde
+- Correction : un échec de mysqldump était masqué par gzip et la sauvegarde notée « OK » avec
+  un fichier vide (pipefail + contrôle de taille) ; le dossier de la sauvegarde ratée est supprimé
+- Correction : le message d'erreur de sauvegarde ne contient plus le mot de passe de la base
+- Correction : désactiver/réactiver la sauvegarde ne réinitialise plus la configuration NAS
+  (seuls les champs envoyés sont enregistrés)
+
 ## 1.6.2 — septembre 2026 — élagage des restes PrintFlow
 
 - Sauvegarde : dump de la base uniquement (sections photos et bibliothèque retirées),

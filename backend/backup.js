@@ -26,6 +26,14 @@ let _backupStatus   = 'idle'; // 'idle' | 'running' | 'success' | 'error'
 let _backupStartedAt = null;
 let _lastError = null;
 
+// ── Mode du rapport email : 'always' | 'errors' | 'off' ────
+// (compatibilité : l'ancienne valeur 'true' équivaut à 'always')
+function reportModeOf(v) {
+  if (v === 'always' || v === 'true') return 'always';
+  if (v === 'errors') return 'errors';
+  return 'off';
+}
+
 // ── Lecture des settings ──────────────────────────────────
 async function getBackupSettings() {
   try {
@@ -46,13 +54,13 @@ async function getBackupSettings() {
       nasUser:         s.backup_nas_user     || '',
       nasPassword:     s.backup_nas_password ? (function(){ try{ return decrypt(s.backup_nas_password); }catch(_){ return s.backup_nas_password; } })() : '',
       nasFolder:       s.backup_nas_folder   || '/filaflow',
-      reportEmail:     s.backup_report_email !== 'false',
+      reportMode:      reportModeOf(s.backup_report_email),
     };
   } catch (_) {
     return { enabled: false, path: DEFAULT_BACKUP_PATH, schedule: DEFAULT_SCHEDULE,
              keep: DEFAULT_KEEP,
              destination: 'local', nasIp:'', nasShare:'', nasUser:'', nasPassword:'',
-             nasFolder:'/filaflow', reportEmail: true };
+             nasFolder:'/filaflow', reportMode: 'off' };
   }
 }
 
@@ -165,12 +173,24 @@ async function runBackup() {
     // ── 1. Base de données (toujours complète, compressée) ─
     const dbFile = path.join(destDir, 'database.sql.gz');
     await new Promise(function(resolve, reject) {
-      const cmd = 'mysqldump -h' + dbConf.host + ' -u' + dbConf.user +
+      // pipefail : sans lui, un échec de mysqldump est masqué par le succès de gzip
+      const cmd = 'set -o pipefail; mysqldump -h' + dbConf.host + ' -u' + dbConf.user +
         ' -p' + dbConf.pass + ' --single-transaction ' + dbConf.name +
         ' | gzip > "' + dbFile + '"';
-      exec(cmd, function(err){ if(err) reject(new Error(err.message)); else resolve(); });
+      // Message d'erreur = stderr seul (la commande contient le mot de passe de la base)
+      exec(cmd, { shell: '/bin/bash' }, function(err, stdout, stderr){
+        if (err) reject(new Error('Dump de la base échoué : ' + ((stderr || '').trim() || 'code ' + err.code)));
+        else resolve();
+      });
+    }).catch(function(e) {
+      try { fs.rmSync(destDir, { recursive: true, force: true }); } catch(_) {}  // pas de dossier vide compté dans la rétention
+      throw e;
     });
     report.dbSize = fs.statSync(dbFile).size;
+    if (report.dbSize < 200) {
+      try { fs.rmSync(destDir, { recursive: true, force: true }); } catch(_) {}
+      throw new Error('Dump de la base vide ou incomplet (' + report.dbSize + ' octets)');
+    }
 
     // ── Manifest ────────────────────────────────────────
     fs.writeFileSync(path.join(destDir,'manifest.json'), JSON.stringify({
@@ -239,6 +259,13 @@ async function runBackup() {
     ['backup_last_status', report.success ? 'ok' : 'error:'+report.error,
      report.success ? 'ok' : 'error:'+report.error]
   ).catch(function(){});
+
+  // Rapport email (sans bloquer ni faire échouer la sauvegarde)
+  if (settings.reportMode === 'always' || (settings.reportMode === 'errors' && !report.success)) {
+    require('./mailer').sendBackupReport(report).catch(function(e) {
+      console.error('[Backup] Rapport email non envoyé :', e.message);
+    });
+  }
 
   return report;
 }
@@ -350,7 +377,7 @@ function setupRoutes(router) {
         nasIp:       settings.nasIp,
         nasShare:    settings.nasShare,
         nasFolder:   settings.nasFolder,
-        reportEmail: settings.reportEmail,
+        reportMode:  settings.reportMode,
         status:      _backupStatus,
         lastBackup:  _lastBackup,
         lastError:   _lastError,
@@ -392,21 +419,30 @@ function setupRoutes(router) {
   // POST /api/backup/settings — mettre à jour et replanifier
   router.post('/settings', async (req, res) => {
     try {
-      const { enabled, path: bPath, schedule, keep,
-              destination, nasIp, nasShare, nasUser, nasPassword, nasFolder,
-              reportEmail } = req.body;
+      const b = req.body;
+      // Seuls les champs présents dans la requête sont écrits : un appel partiel
+      // (ex. { enabled } depuis l'interrupteur) ne réinitialise pas le reste.
+      const has = function(k) { return Object.prototype.hasOwnProperty.call(b, k) && b[k] !== undefined; };
       const entries = [
-        ['backup_enabled',          String(enabled)],
-        ['backup_path',             bPath       || DEFAULT_BACKUP_PATH],
-        ['backup_schedule',         schedule    || DEFAULT_SCHEDULE],
-        ['backup_keep',             String(parseInt(keep) || DEFAULT_KEEP)],
-        ['backup_destination',      destination || 'local'],
-        ['backup_nas_ip',           nasIp       || ''],
-        ['backup_nas_share',        nasShare    || ''],
-        ['backup_nas_user',         nasUser     || ''],
-        ['backup_nas_password',     nasPassword !== undefined ? encrypt(nasPassword) : undefined],
-        ['backup_nas_folder',       nasFolder   || '/filaflow'],
-        ['backup_report_email',     String(reportEmail !== false && reportEmail !== 'false')],
+        ['backup_enabled',       has('enabled')     ? String(b.enabled) : undefined],
+        ['backup_path',          has('path')        ? (b.path || DEFAULT_BACKUP_PATH) : undefined],
+        ['backup_schedule',      has('schedule')    ? (b.schedule || DEFAULT_SCHEDULE) : undefined],
+        ['backup_keep',          has('keep')        ? String(parseInt(b.keep) || DEFAULT_KEEP) : undefined],
+        ['backup_destination',   has('destination') ? (b.destination || 'local') : undefined],
+        ['backup_nas_ip',        has('nasIp')       ? (b.nasIp || '') : undefined],
+        ['backup_nas_share',     has('nasShare')    ? (b.nasShare || '') : undefined],
+        ['backup_nas_user',      has('nasUser')     ? (b.nasUser || '') : undefined],
+        ['backup_nas_password',  has('nasPassword') ? encrypt(b.nasPassword) : undefined],
+        ['backup_nas_folder',    has('nasFolder')   ? (b.nasFolder || '/filaflow') : undefined],
+        ['backup_report_email',  has('reportMode')  ? reportModeOf(b.reportMode) : undefined],
+        // Email (SMTP) — mot de passe chiffré, conservé si non fourni
+        ['smtp_host',            has('smtpHost')     ? String(b.smtpHost).trim() : undefined],
+        ['smtp_port',            has('smtpPort')     ? String(parseInt(b.smtpPort) || 587) : undefined],
+        ['smtp_secure',          has('smtpSecure')   ? String(b.smtpSecure === true || b.smtpSecure === 'true') : undefined],
+        ['smtp_user',            has('smtpUser')     ? String(b.smtpUser).trim() : undefined],
+        ['smtp_password',        has('smtpPassword') ? encrypt(b.smtpPassword) : undefined],
+        ['smtp_from',            has('smtpFrom')     ? String(b.smtpFrom).trim() : undefined],
+        ['report_email',         has('reportTo')     ? String(b.reportTo).trim() : undefined],
       ];
       for (const [k, v] of entries) {
         if (v === undefined) continue; // Ne pas écraser si non fourni
@@ -418,6 +454,16 @@ function setupRoutes(router) {
       await restartScheduler();
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // POST /api/backup/test-mail — envoyer un email de test
+  router.post('/test-mail', async (req, res) => {
+    try {
+      const to = await require('./mailer').sendTestMail(req.body || {});
+      res.json({ ok: true, message: 'Email de test envoyé à ' + to });
+    } catch (e) {
+      res.json({ ok: false, message: e.message });
+    }
   });
 
   // POST /api/backup/test-nas — tester la connexion NAS

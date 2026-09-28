@@ -314,7 +314,55 @@ async function renderSettings() {
             <input id="set-backup-keep" type="number" min="1" max="30"
                    value="${settings.backup_keep||7}">
             <div style="font-size:11px;color:var(--text3);margin-top:3px">
-              Stratégie incrémentielle — les fichiers inchangés partagent l'espace disque
+              Chaque sauvegarde est un dump complet de la base, dans son propre dossier daté
+            </div>
+          </div>
+
+          <!-- Rapport par email -->
+          <div class="form-group full" style="border-top:0.5px solid var(--border);padding-top:14px;margin-top:4px">
+            <label class="form-label">Rapport par email</label>
+            <select id="set-report-mode" onchange="toggleReportMode(this.value)" style="max-width:320px">
+              <option value="off"    ${reportModeOf(settings.backup_report_email)==='off'?'selected':''}>Désactivé</option>
+              <option value="always" ${reportModeOf(settings.backup_report_email)==='always'?'selected':''}>Après chaque sauvegarde</option>
+              <option value="errors" ${reportModeOf(settings.backup_report_email)==='errors'?'selected':''}>En cas d'erreur uniquement</option>
+            </select>
+            <div id="report-smtp-config" style="display:${reportModeOf(settings.backup_report_email)==='off'?'none':'block'};margin-top:12px">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Serveur SMTP</label>
+                  <input id="set-smtp-host" value="${escHtml(settings.smtp_host||'')}" placeholder="ssl0.ovh.net">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Port</label>
+                  <input id="set-smtp-port" type="number" value="${escHtml(settings.smtp_port||'587')}" placeholder="587">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Utilisateur</label>
+                  <input id="set-smtp-user" value="${escHtml(settings.smtp_user||'')}" placeholder="adresse@domaine.fr" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Mot de passe</label>
+                  <input type="password" id="set-smtp-password" value="" autocomplete="new-password"
+                         placeholder="${settings.smtp_password ? 'Configuré — laisser vide pour conserver' : 'Mot de passe'}">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Expéditeur</label>
+                  <input id="set-smtp-from" value="${escHtml(settings.smtp_from||'')}" placeholder="Par défaut : l'utilisateur">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Destinataire</label>
+                  <input id="set-report-to" value="${escHtml(settings.report_email||'')}" placeholder="vous@domaine.fr">
+                </div>
+                <div class="form-group full">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                    <input type="checkbox" id="set-smtp-secure" ${settings.smtp_secure==='true'?'checked':''}
+                           style="margin:0;width:14px;height:14px">
+                    <span>SSL direct (port 465) — décoché : STARTTLS (port 587)</span>
+                  </label>
+                </div>
+              </div>
+              <button class="btn btn-sm" onclick="testMail()" id="btn-test-mail" style="margin-top:4px">Envoyer un test</button>
+              <span id="mail-test-result" style="font-size:12px;margin-left:10px"></span>
             </div>
           </div>
 
@@ -630,6 +678,43 @@ async function testNasConnection() {
   if (btn) btn.disabled = false;
 }
 
+// ── Rapport email ────────────────────────────────────────
+function reportModeOf(v) {
+  if (v === 'always' || v === 'true') return 'always';
+  if (v === 'errors') return 'errors';
+  return 'off';
+}
+
+function toggleReportMode(val) {
+  const el = document.getElementById('report-smtp-config');
+  if (el) el.style.display = val === 'off' ? 'none' : 'block';
+}
+
+async function testMail() {
+  const btn    = document.getElementById('btn-test-mail');
+  const result = document.getElementById('mail-test-result');
+  if (btn) btn.disabled = true;
+  if (result) { result.textContent = 'Envoi en cours…'; result.style.color = 'var(--text3)'; }
+  try {
+    const r = await API.post('/backup/test-mail', {
+      smtpHost:     document.getElementById('set-smtp-host')?.value || '',
+      smtpPort:     document.getElementById('set-smtp-port')?.value || '',
+      smtpSecure:   !!document.getElementById('set-smtp-secure')?.checked,
+      smtpUser:     document.getElementById('set-smtp-user')?.value || '',
+      smtpPassword: document.getElementById('set-smtp-password')?.value || '',
+      smtpFrom:     document.getElementById('set-smtp-from')?.value || '',
+      reportTo:     document.getElementById('set-report-to')?.value || '',
+    });
+    if (result) {
+      result.textContent = (r.ok ? '✓ ' : '✗ ') + r.message;
+      result.style.color = r.ok ? 'var(--success)' : 'var(--danger)';
+    }
+  } catch(e) {
+    if (result) { result.textContent = '✗ ' + e.message; result.style.color = 'var(--danger)'; }
+  }
+  if (btn) btn.disabled = false;
+}
+
 async function saveBackupSettings() {
   const destNas     = document.getElementById('backup-dest-nas')?.checked;
   const body = {
@@ -637,7 +722,14 @@ async function saveBackupSettings() {
     path:           document.getElementById('set-backup-path')?.value || '/opt/filaflow/backups',
     schedule:       document.getElementById('set-backup-schedule')?.value || '0 3 * * *',
     keep:           parseInt(document.getElementById('set-backup-keep')?.value) || 7,
-    reportEmail:    false,
+    reportMode:     document.getElementById('set-report-mode')?.value || 'off',
+    smtpHost:       document.getElementById('set-smtp-host')?.value || '',
+    smtpPort:       document.getElementById('set-smtp-port')?.value || '587',
+    smtpSecure:     !!document.getElementById('set-smtp-secure')?.checked,
+    smtpUser:       document.getElementById('set-smtp-user')?.value || '',
+    smtpPassword:   document.getElementById('set-smtp-password')?.value || undefined, // vide = conserver
+    smtpFrom:       document.getElementById('set-smtp-from')?.value || '',
+    reportTo:       document.getElementById('set-report-to')?.value || '',
     destination:    destNas ? 'nas' : 'local',
     nasIp:          document.getElementById('set-nas-ip')?.value || '',
     nasShare:       document.getElementById('set-nas-share')?.value || '',
