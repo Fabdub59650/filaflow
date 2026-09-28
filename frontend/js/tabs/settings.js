@@ -637,7 +637,6 @@ async function saveBackupSettings() {
     path:           document.getElementById('set-backup-path')?.value || '/opt/filaflow/backups',
     schedule:       document.getElementById('set-backup-schedule')?.value || '0 3 * * *',
     keep:           parseInt(document.getElementById('set-backup-keep')?.value) || 7,
-    libraryEnabled: false,
     reportEmail:    false,
     destination:    destNas ? 'nas' : 'local',
     nasIp:          document.getElementById('set-nas-ip')?.value || '',
@@ -702,7 +701,7 @@ async function loadBackupStatus() {
         listEl.innerHTML = '<span style="color:var(--text3);font-size:13px">Aucune sauvegarde disponible.</span>';
       } else {
         listEl.innerHTML = '<table><thead><tr>' +
-          '<th>Date</th><th>Type</th><th>BDD</th><th>Photos</th><th>Biblio</th>' +
+          '<th>Date</th><th>Type</th><th>BDD</th>' +
           '</tr></thead><tbody>' +
           status.backups.map(function(b) {
             const fmt = function(n) {
@@ -717,21 +716,12 @@ async function loadBackupStatus() {
               '<td><span style="font-size:10px;padding:1px 6px;border-radius:10px;' +
                 'background:var(--accent-bg);color:var(--accent)">' + (b.type||'Incrémentielle') + '</span></td>' +
               '<td style="font-size:12px">' + fmt(b.dbSize) + '</td>' +
-              '<td style="font-size:12px">' + (b.photoCount > 0 ? b.photoCount + ' new' : '—') + '</td>' +
-              '<td style="font-size:12px">' + (b.libCount > 0 ? b.libCount + ' new' : '—') + '</td>' +
             '</tr>';
           }).join('') +
           '</tbody></table>';
       }
     }
   } catch(_) {}
-}
-
-async function deleteBackup(filename) {
-  confirmDelete('Supprimer cette sauvegarde ?', async () => {
-    try { await API.del('/backup/' + filename); toast('Sauvegarde supprimée'); loadBackupStatus(); }
-    catch(e) { toast(e.message, 'error'); }
-  });
 }
 
 async function exportFull() {
@@ -808,7 +798,7 @@ function previewRestoreFile(input) {
   if (status) status.textContent = '';
   if (!file) { if (btn) btn.disabled = true; return; }
   const size = file.size < 1048576 ? (file.size/1024).toFixed(0)+' Ko' : (file.size/1048576).toFixed(1)+' Mo';
-  const type = file.name.endsWith('.tar.gz') ? 'Export complet (BDD + bibliothèque)' : 'Sauvegarde SQL';
+  const type = file.name.endsWith('.tar.gz') ? 'Export complet (BDD + configuration)' : 'Sauvegarde SQL';
   if (preview) preview.innerHTML =
     '<span style="color:var(--accent)">📄 ' + file.name + '</span>' +
     ' · ' + size + ' · ' + type;
@@ -825,7 +815,7 @@ async function doRestore() {
   const isFull = file.name.endsWith('.tar.gz');
 
   const msg = isFull
-    ? 'Restaurer cet export complet ? La base de données ET la bibliothèque seront remplacées.'
+    ? 'Restaurer cet export complet ? La base de données sera remplacée.'
     : 'Restaurer cette sauvegarde SQL ? La base de données sera remplacée par celle-ci.';
 
   if (!confirm('⚠ ' + msg + '\n\nCette action est irréversible. Continuer ?')) return;
@@ -849,32 +839,6 @@ async function doRestore() {
   } catch(e) {
     if (status) { status.style.color = 'var(--danger)'; status.textContent = '❌ ' + e.message; }
     btn.disabled = false;
-  }
-}
-
-async function restoreBackup(filename) {
-  if (!confirm('Restaurer la sauvegarde "' + filename + '" ?\n\nLa base de données actuelle sera remplacée.')) return;
-  const status = document.createElement('div');
-  status.style.cssText = 'position:fixed;top:20px;right:20px;background:var(--bg2);border:1px solid var(--border);' +
-    'padding:12px 16px;border-radius:var(--radius);font-size:13px;z-index:9999;color:var(--text3)';
-  status.textContent = 'Restauration en cours…';
-  document.body.appendChild(status);
-  try {
-    // Télécharger le fichier puis le renvoyer en restore
-    const dlResp = await fetch('/api/backup/download/' + filename, { headers: authHeaders() });
-    const blob   = await dlResp.blob();
-    const fd = new FormData();
-    fd.append('backup', blob, filename);
-    const resp = await fetch('/api/backup/restore', { method: 'POST', body: fd, headers: authHeaders() });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Erreur');
-    status.style.color = 'var(--success)';
-    status.textContent = '✓ ' + (data.message || 'Restauré') + ' — Rechargement…';
-    setTimeout(function() { window.location.reload(); }, 2000);
-  } catch(e) {
-    status.style.color = 'var(--danger)';
-    status.textContent = '❌ ' + e.message;
-    setTimeout(function() { document.body.removeChild(status); }, 4000);
   }
 }
 

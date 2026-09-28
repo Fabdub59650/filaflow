@@ -1,5 +1,18 @@
 # Changelog — FilaFlow
 
+## 1.6.2 — septembre 2026 — élagage des restes PrintFlow
+
+- Sauvegarde : dump de la base uniquement (sections photos et bibliothèque retirées),
+  type « Complète » ; tableau des sauvegardes réduit à Date, Type et BDD
+- Export complet : base + configuration, `_export_version` lu depuis package.json
+- Restauration : branche « bibliothèque » retirée
+- Suppression du code mort : ancien format de sauvegarde en fichiers .sql à plat
+  (fonctions de rétention/liste, routes download et delete, fonctions front orphelines)
+- Historique : libellés limités aux entités FilaFlow (Filament, NFC, Paramètres)
+- Updater : exclusions `prints` et `library` retirées
+- CSS : styles imprimantes retirés
+- Réglages orphelins à supprimer en base : backup_library_enabled, library_path, prints_photo_path
+
 ## 1.6.1 — septembre 2026
 
 - Correction : une puce inconnue posée sur le lecteur NFC ne déclenchait rien si la fenêtre NFC

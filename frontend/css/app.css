@@ -148,31 +148,10 @@ input[type=color] { padding: 2px 4px; height: 36px; cursor: pointer; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 0.5px solid var(--border); }
 .hidden { display: none !important; }
 
-/* Printer iframe */
-.iframe-modal { position: fixed; inset: 0; background: var(--bg); z-index: 300; display: flex; flex-direction: column; }
-.iframe-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--bg2); border-bottom: 0.5px solid var(--border); font-weight: 500; font-size: 14px; flex-shrink: 0; }
-#printer-iframe { flex: 1; border: none; width: 100%; }
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 199; }
 
 /* Filament dot */
 .filament-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0; }
-
-/* Printer cards */
-.printer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 16px; }
-.printer-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
-.printer-card.printing { border-color: var(--accent); }
-.printer-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-.printer-icon { width: 36px; height: 36px; background: var(--bg3); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; color: var(--text2); }
-.printer-name { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
-.printer-model { font-size: 12px; color: var(--text3); }
-.printer-stats-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
-.pstat { background: var(--bg3); border-radius: var(--radius); padding: 9px 11px; }
-.pstat-label { font-size: 10px; color: var(--text3); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
-.pstat-val { font-size: 14px; font-weight: 500; }
-.printer-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.job-bar { background: var(--accent-bg); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 12px; }
-.job-name { font-size: 12px; font-weight: 500; color: var(--accent); margin-bottom: 4px; }
-.job-pct { font-size: 11px; color: var(--accent); opacity: 0.7; }
 
 /* Toast */
 #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
@@ -204,9 +183,6 @@ input[type=color] { padding: 2px 4px; height: 36px; cursor: pointer; }
   /* Grilles stats : 2 colonnes au lieu de 4 */
   .metrics-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 
-  /* Cartes imprimantes : 2 colonnes max */
-  .printer-grid { grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); }
-
   /* Formulaires : 1 colonne */
   .form-grid { grid-template-columns: 1fr; }
   .form-group.full { grid-column: auto; }
@@ -217,9 +193,6 @@ input[type=color] { padding: 2px 4px; height: 36px; cursor: pointer; }
 
   /* Tableaux : permettre le scroll horizontal plutôt que de déborder */
   .card table  { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-  /* Mini stats imprimantes : 2 colonnes */
-  .printer-stats-mini { grid-template-columns: repeat(2,1fr); }
 }
 
 /* ── Responsive petite tablette / grande phablette (≤ 768px) ─────────────── */
@@ -268,7 +241,6 @@ input[type=color] { padding: 2px 4px; height: 36px; cursor: pointer; }
 
   /* Grilles : 1 colonne */
   .metrics-grid  { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .printer-grid  { grid-template-columns: 1fr; }
 
   /* Modales : presque plein écran */
   .modal {

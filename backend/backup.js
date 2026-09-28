@@ -1,9 +1,9 @@
 /**
  * backup.js — Service de sauvegarde automatique de la base de données
  * - Planning configurable via cron expression (ex: "0 2 * * *" = 2h du matin)
- * - Rétention configurable (nb de fichiers à conserver)
- * - Dossier de sauvegarde configurable depuis les paramètres
- * - Sauvegarde manuelle possible via API
+ * - Destination locale ou NAS (SMB), un dossier horodaté par sauvegarde
+ * - Rétention configurable (nb de sauvegardes conservées)
+ * - Sauvegarde manuelle, export complet et restauration via API
  */
 
 const { exec, execSync } = require('child_process');
@@ -18,7 +18,6 @@ const restoreUpload = multer({ storage: multer.memoryStorage(), limits: { fileSi
 const DEFAULT_BACKUP_PATH    = '/opt/filaflow/backups';
 const DEFAULT_SCHEDULE       = '0 2 * * *'; // 2h du matin tous les jours
 const DEFAULT_KEEP           = 7;           // 7 fichiers conservés
-const DEFAULT_LIBRARY_PATH   = process.env.LIBRARY_PATH || '/opt/filaflow/library';
 const INSTALL_DIR            = '/opt/filaflow';
 
 let _cronTimer = null;
@@ -40,8 +39,6 @@ async function getBackupSettings() {
       path:            s.backup_path     || DEFAULT_BACKUP_PATH,
       schedule:        s.backup_schedule || DEFAULT_SCHEDULE,
       keep:            parseInt(s.backup_keep) || DEFAULT_KEEP,
-      libraryEnabled:  s.backup_library_enabled !== 'false',
-      libraryPath:     s.library_path || DEFAULT_LIBRARY_PATH,
       // NAS
       destination:     s.backup_destination  || 'local',
       nasIp:           s.backup_nas_ip       || '',
@@ -53,7 +50,7 @@ async function getBackupSettings() {
     };
   } catch (_) {
     return { enabled: false, path: DEFAULT_BACKUP_PATH, schedule: DEFAULT_SCHEDULE,
-             keep: DEFAULT_KEEP, libraryEnabled: true, libraryPath: DEFAULT_LIBRARY_PATH,
+             keep: DEFAULT_KEEP,
              destination: 'local', nasIp:'', nasShare:'', nasUser:'', nasPassword:'',
              nasFolder:'/filaflow', reportEmail: true };
   }
@@ -121,14 +118,7 @@ function getDirSize(dir) {
   } catch(_) { return 0; }
 }
 
-function formatSize(bytes) {
-  if (!bytes || bytes < 1024)      return bytes + ' o';
-  if (bytes < 1024*1024)           return Math.round(bytes/1024) + ' Ko';
-  if (bytes < 1024*1024*1024)      return (bytes/1024/1024).toFixed(1) + ' Mo';
-  return (bytes/1024/1024/1024).toFixed(2) + ' Go';
-}
-
-// ── Effectuer une sauvegarde incrémentielle ───────────────
+// ── Effectuer une sauvegarde ──────────────────────────────
 async function runBackup() {
   const settings  = await getBackupSettings();
   const dbConf    = getDbConfig();
@@ -140,10 +130,10 @@ async function runBackup() {
                  String(now.getMinutes()).padStart(2,'0');
 
   const report = {
-    stamp, success: false, error: null, type: 'Incrémentielle',
+    stamp, success: false, error: null, type: 'Complète',
     date: now.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}),
     time: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
-    dbSize: 0, photoCount: 0, photoSize: 0, libCount: 0, libSize: 0,
+    dbSize: 0,
     totalSize: 0, deleted: [], destination: '', duration: 0,
   };
 
@@ -169,14 +159,6 @@ async function runBackup() {
     }
     fs.mkdirSync(backupRoot, { recursive: true });
 
-    // ── Trouver la dernière sauvegarde ───────────────────
-    const existing = fs.readdirSync(backupRoot)
-      .filter(function(d){ return /^\d{4}-\d{2}-\d{2}_/.test(d); })
-      .filter(function(d){ return fs.statSync(path.join(backupRoot,d)).isDirectory(); })
-      .sort();
-    const lastBackup = existing.length > 0 ? path.join(backupRoot, existing[existing.length-1]) : null;
-    if (!lastBackup) report.type = 'Complète (première sauvegarde)';
-
     const destDir = path.join(backupRoot, stamp);
     fs.mkdirSync(destDir, { recursive: true });
 
@@ -190,54 +172,17 @@ async function runBackup() {
     });
     report.dbSize = fs.statSync(dbFile).size;
 
-    // ── 2. Photos (rsync incrémentiel avec hard links) ───
-    const [[photoPathRow]] = await db.query(
-      "SELECT value FROM settings WHERE key_name='prints_photo_path'"
-    ).catch(function(){ return [[null]]; });
-    const PHOTOS_DIR = photoPathRow?.value || '/opt/filaflow/prints';
-
-    if (fs.existsSync(PHOTOS_DIR)) {
-      const photosDest = path.join(destDir, 'photos');
-      fs.mkdirSync(photosDest, { recursive: true });
-      let cmd = 'rsync -a --stats';
-      if (lastBackup && fs.existsSync(path.join(lastBackup, 'photos')))
-        cmd += ' --link-dest="' + path.join(lastBackup, 'photos') + '"';
-      cmd += ' "' + PHOTOS_DIR + '/" "' + photosDest + '/"';
-      const out = await new Promise(function(resolve){
-        exec(cmd, function(err, stdout){ resolve(stdout||''); });
-      });
-      const m = out.match(/Number of regular files transferred: (\d+)/);
-      report.photoCount = m ? parseInt(m[1]) : 0;
-      report.photoSize  = getDirSize(photosDest);
-    }
-
-    // ── 3. Bibliothèque (rsync incrémentiel) ─────────────
-    if (settings.libraryEnabled && fs.existsSync(settings.libraryPath)) {
-      const libDest = path.join(destDir, 'library');
-      fs.mkdirSync(libDest, { recursive: true });
-      let cmd = 'rsync -a --stats';
-      if (lastBackup && fs.existsSync(path.join(lastBackup, 'library')))
-        cmd += ' --link-dest="' + path.join(lastBackup, 'library') + '"';
-      cmd += ' "' + settings.libraryPath + '/" "' + libDest + '/"';
-      const out = await new Promise(function(resolve){
-        exec(cmd, function(err, stdout){ resolve(stdout||''); });
-      });
-      const m = out.match(/Number of regular files transferred: (\d+)/);
-      report.libCount = m ? parseInt(m[1]) : 0;
-      report.libSize  = getDirSize(libDest);
-    }
-
     // ── Manifest ────────────────────────────────────────
     fs.writeFileSync(path.join(destDir,'manifest.json'), JSON.stringify({
       stamp, date: now.toISOString(), type: report.type,
-      dbSize: report.dbSize, photoCount: report.photoCount, libCount: report.libCount,
+      dbSize: report.dbSize,
     }, null, 2));
 
     // Enregistrer les métadonnées en BDD pour affichage même si NAS non monté
     const metaKey = 'backup_meta_' + stamp;
     const metaVal = JSON.stringify({
       stamp, date: now.toISOString(), type: report.type,
-      dbSize: report.dbSize, photoCount: report.photoCount, libCount: report.libCount,
+      dbSize: report.dbSize,
       destination: report.destination,
     });
     await db.query(
@@ -296,80 +241,6 @@ async function runBackup() {
   ).catch(function(){});
 
   return report;
-}
-
-// ── Nettoyage des anciennes sauvegardes ───────────────────
-function cleanOldBackups(backupPath, keep) {
-  try {
-    const files = fs.readdirSync(backupPath)
-      .filter(f => f.startsWith('filaflow_') && f.endsWith('.sql'))
-      .map(f => ({ name: f, time: fs.statSync(path.join(backupPath, f)).mtime.getTime() }))
-      .sort((a, b) => b.time - a.time); // Plus récent en premier
-
-    const toDelete = files.slice(keep);
-    toDelete.forEach(f => {
-      fs.unlinkSync(path.join(backupPath, f.name));
-      console.log(`[Backup] Supprimé (rétention) : ${f.name}`);
-    });
-  } catch (e) { console.error('[Backup] Erreur nettoyage :', e.message); }
-}
-
-// ── Sauvegarde de la bibliothèque ────────────────────────
-async function backupLibrary(settings) {
-  if (!fs.existsSync(settings.libraryPath)) {
-    console.warn('[Backup] Bibliothèque introuvable :', settings.libraryPath);
-    return;
-  }
-  const now      = new Date();
-  const stamp    = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const filename = `filaflow_library_${stamp}.tar.gz`;
-  const filepath = path.join(settings.path, filename);
-
-  return new Promise((resolve, reject) => {
-    const cmd = `tar -czf "${filepath}" -C "${path.dirname(settings.libraryPath)}" "${path.basename(settings.libraryPath)}"`;
-    exec(cmd, (err) => {
-      if (err) {
-        console.error('[Backup] Erreur bibliothèque :', err.message);
-        if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
-        reject(err);
-        return;
-      }
-      const size = fs.statSync(filepath).size;
-      console.log(`[Backup] Bibliothèque : ${filename} (${(size/1024/1024).toFixed(1)} Mo)`);
-      cleanOldLibraryBackups(settings.path, settings.keep);
-      resolve({ filename, filepath, size });
-    });
-  });
-}
-
-// ── Nettoyage anciennes sauvegardes bibliothèque ──────────
-function cleanOldLibraryBackups(backupPath, keep) {
-  try {
-    const files = fs.readdirSync(backupPath)
-      .filter(f => f.startsWith('filaflow_library_') && f.endsWith('.tar.gz'))
-      .map(f => ({ name: f, time: fs.statSync(path.join(backupPath, f)).mtime.getTime() }))
-      .sort((a, b) => b.time - a.time);
-    files.slice(keep).forEach(f => {
-      fs.unlinkSync(path.join(backupPath, f.name));
-      console.log(`[Backup] Supprimé bibliothèque (rétention) : ${f.name}`);
-    });
-  } catch (e) { console.error('[Backup] Erreur nettoyage bibliothèque :', e.message); }
-}
-
-// ── Lister les sauvegardes existantes ────────────────────
-function listBackups(backupPath) {
-  try {
-    if (!fs.existsSync(backupPath)) return [];
-    return fs.readdirSync(backupPath)
-      .filter(f => (f.startsWith('filaflow_') && f.endsWith('.sql')) ||
-                   (f.startsWith('filaflow_library_') && f.endsWith('.tar.gz')))
-      .map(f => {
-        const stat = fs.statSync(path.join(backupPath, f));
-        const type = f.endsWith('.tar.gz') ? 'library' : 'database';
-        return { filename: f, size: stat.size, date: stat.mtime.toISOString(), type };
-      })
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-  } catch (_) { return []; }
 }
 
 // ── Parser une expression cron simple (min heure * * *) ──
@@ -518,39 +389,10 @@ function setupRoutes(router) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // GET /api/backup/download/:filename — télécharger une sauvegarde
-  router.get('/download/:filename', async (req, res) => {
-    try {
-      const settings = await getBackupSettings();
-      const filename  = path.basename(req.params.filename); // sécurité
-      const filepath  = path.join(settings.path, filename);
-      if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Fichier non trouvé' });
-      if (!filename.startsWith('filaflow_') || (!filename.endsWith('.sql') && !filename.endsWith('.tar.gz')))
-        return res.status(400).json({ error: 'Fichier invalide' });
-      const mime = filename.endsWith('.tar.gz') ? 'application/gzip' : 'application/sql';
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Type', mime);
-      fs.createReadStream(filepath).pipe(res);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
-  // DELETE /api/backup/:filename — supprimer une sauvegarde
-  router.delete('/:filename', async (req, res) => {
-    try {
-      const settings = await getBackupSettings();
-      const filename  = path.basename(req.params.filename);
-      const filepath  = path.join(settings.path, filename);
-      if (!filename.startsWith('filaflow_') || (!filename.endsWith('.sql') && !filename.endsWith('.tar.gz')))
-        return res.status(400).json({ error: 'Fichier invalide' });
-      if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
-      res.json({ ok: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
   // POST /api/backup/settings — mettre à jour et replanifier
   router.post('/settings', async (req, res) => {
     try {
-      const { enabled, path: bPath, schedule, keep, libraryEnabled,
+      const { enabled, path: bPath, schedule, keep,
               destination, nasIp, nasShare, nasUser, nasPassword, nasFolder,
               reportEmail } = req.body;
       const entries = [
@@ -558,7 +400,6 @@ function setupRoutes(router) {
         ['backup_path',             bPath       || DEFAULT_BACKUP_PATH],
         ['backup_schedule',         schedule    || DEFAULT_SCHEDULE],
         ['backup_keep',             String(parseInt(keep) || DEFAULT_KEEP)],
-        ['backup_library_enabled',  String(libraryEnabled === true || libraryEnabled === 'true')],
         ['backup_destination',      destination || 'local'],
         ['backup_nas_ip',           nasIp       || ''],
         ['backup_nas_share',        nasShare    || ''],
@@ -601,11 +442,10 @@ function setupRoutes(router) {
     }
   });
 
-  // GET /api/backup/export-full — export complet BDD + bibliothèque + config en .tar.gz
+  // GET /api/backup/export-full — export complet BDD + config en .tar.gz
   router.get('/export-full', async (req, res) => {
     const fs      = require('fs');
     const { spawn } = require('child_process');
-    const settings  = await getBackupSettings();
     const dbConf    = getDbConfig();
 
     const now    = new Date();
@@ -642,19 +482,12 @@ function setupRoutes(router) {
         }
       });
       configObj._export_date    = now.toISOString();
-      configObj._export_version = '2.9.8';
+      configObj._export_version = (function(){ try { return require('./package.json').version; } catch(_) { return 'inconnue'; } })();
       fs.writeFileSync(path.join(tmpDir, 'config.json'), JSON.stringify(configObj, null, 2));
 
       // 3. Construire la commande tar en streaming direct vers HTTP
-      const filename    = 'filaflow_export_' + stamp + '.tar.gz';
-      const libraryPath = settings.libraryPath || '/opt/filaflow/library';
-
-      // Construire les arguments tar
-      const tarArgs = ['-czf', '-', '-C', path.dirname(tmpDir), path.basename(tmpDir)];
-      if (fs.existsSync(libraryPath)) {
-        tarArgs.push('-C', path.dirname(libraryPath));
-        tarArgs.push(path.basename(libraryPath));
-      }
+      const filename = 'filaflow_export_' + stamp + '.tar.gz';
+      const tarArgs  = ['-czf', '-', '-C', path.dirname(tmpDir), path.basename(tmpDir)];
 
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Type', 'application/gzip');
@@ -749,22 +582,8 @@ function setupRoutes(router) {
         try { await runSQL(sqlFile); } catch(e) {
           fs.rmSync(tmpDir, { recursive: true }); fs.unlinkSync(tmpTar); throw e;
         }
-        // Restaurer bibliotheque si presente
-        var libraryRestored = false;
-        var libTar = files.find(function(f) { return f.includes('library') && f.endsWith('.tar.gz'); });
-        if (libTar) {
-          try {
-            var settings = await getBackupSettings();
-            var libPath  = settings.libraryPath || DEFAULT_LIBRARY_PATH;
-            await new Promise(function(resolve) {
-              exec('tar -xzf "' + libTar + '" -C "' + path.dirname(libPath) + '"', function() { resolve(); });
-            });
-            libraryRestored = true;
-          } catch(_) {}
-        }
         fs.rmSync(tmpDir, { recursive: true }); fs.unlinkSync(tmpTar);
-        return res.json({ ok: true, type: 'full', libraryRestored: libraryRestored,
-          message: 'Restauration complete' + (libraryRestored ? ' (BDD + bibliotheque)' : ' (BDD)') });
+        return res.json({ ok: true, type: 'full', message: 'Restauration complete (BDD)' });
       }
       return res.status(400).json({ error: 'Format non supporte (.sql ou .tar.gz uniquement)' });
     } catch(e) { res.status(500).json({ error: e.message }); }

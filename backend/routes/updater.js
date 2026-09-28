@@ -111,8 +111,6 @@ async function runUpdate(downloadUrl, version) {
     'backend/.env',
     'backend/node_modules',
     'frontend/uploads',
-    'prints',
-    'library',
     'backups',
     '*.crt', '*.pem', '*.key',
   ];

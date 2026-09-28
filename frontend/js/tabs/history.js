@@ -62,15 +62,9 @@ async function renderHistory() {
   };
 
   const ENTITY_LABELS = {
-    filament:       '🎨 Filament',
-    print:          '🖨 Impression',
-    printer:        '⚙ Imprimante',
-    project:        '📁 Projet',
-    library_object: '📚 Bibliothèque',
-    nfc:            '📡 NFC',
-    settings:       '⚙️ Paramètres',
-    quote:          '📄 Devis',
-    maintenance:    '🔧 Maintenance',
+    filament: '🎨 Filament',
+    nfc:      '📡 NFC',
+    settings: '⚙️ Paramètres',
   };
 
   content.innerHTML =
