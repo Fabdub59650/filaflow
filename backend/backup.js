@@ -126,6 +126,95 @@ function getDirSize(dir) {
   } catch(_) { return 0; }
 }
 
+// ── Configuration système du Pi (archive system.tar.gz) ───
+// Tout ce qu'il faut pour reconstruire le Pi sur une carte SD neuve, en plus
+// de la base : Nginx (sites, certificats), .env de FilaFlow (identifiants de la
+// base et clé de chiffrement des mots de passe NAS/SMTP), stack Docker Adminer,
+// service systemd, réseau, crontabs… Les chemins absents sont ignorés.
+const SYSTEM_PATHS = [
+  'etc/nginx',
+  'opt/filaflow/backend/.env',
+  'opt/stacks',
+  'etc/systemd/system/filaflow.service',
+  'etc/log2ram.conf',
+  'etc/hostname',
+  'etc/hosts',
+  'etc/fstab',
+  'etc/NetworkManager/system-connections',
+  'etc/dhcpcd.conf',
+  'boot/firmware/config.txt',
+  'boot/firmware/cmdline.txt',
+  'var/spool/cron/crontabs',
+  'home/pi/.ssh/authorized_keys',
+  'home/pi/.gitconfig',
+];
+
+const SYSTEM_README = [
+  'SAUVEGARDE SYSTÈME FILAFLOW',
+  '===========================',
+  '',
+  'Contenu : fichiers de configuration du Pi (chemins relatifs à la racine /),',
+  'system-info.txt (inventaire : paquets, services, conteneurs, versions).',
+  'La base de données est à côté, dans database.sql.gz.',
+  '',
+  'ATTENTION : cette archive contient des secrets (clé privée du certificat,',
+  'mots de passe de la base et du Wi-Fi, clé de chiffrement). À garder sur le NAS.',
+  '',
+  'Reconstruction sur une carte SD neuve (Raspberry Pi OS 64 bits) :',
+  "  1. Même nom d'hôte et même IP, activer SSH",
+  '  2. Extraire dans un dossier temporaire, JAMAIS directement dans / :',
+  '       mkdir /tmp/sys && sudo tar -xzf system.tar.gz -C /tmp/sys',
+  '  3. Réinstaller FilaFlow : git clone du dépôt puis sudo bash scripts/install.sh',
+  '  4. Recopier les fichiers utiles depuis /tmp/sys, en priorité :',
+  '       opt/filaflow/backend/.env       (avant de restaurer la base)',
+  '       etc/nginx/sites-available/, etc/nginx/ssl/',
+  '       opt/stacks/ puis : cd /opt/stacks/adminer && sudo docker compose up -d',
+  '  5. Restaurer la base : gunzip -c database.sql.gz | sudo mariadb filaflow',
+  '  6. sudo systemctl restart filaflow nginx',
+  "  Paquets et services d'origine : voir system-info.txt",
+  '',
+].join('\n');
+
+function systemInfo() {
+  const { execSync } = require('child_process');
+  const run = function(label, cmd) {
+    let out;
+    try { out = execSync('{ ' + cmd + '; } 2>&1; true', { timeout: 15000, shell: '/bin/bash' }).toString().trim(); }
+    catch (e) { out = '(indisponible)'; }
+    return '### ' + label + '\n' + out + '\n';
+  };
+  return [
+    'Généré le ' + new Date().toISOString() + '\n',
+    run('Système',           'grep PRETTY_NAME /etc/os-release; uname -a'),
+    run('Réseau',            'hostname; hostname -I'),
+    run('Versions',          'node -v; mariadb --version; nginx -v 2>&1; docker --version'),
+    run('Services activés',  'systemctl list-unit-files --type=service --state=enabled --no-legend'),
+    run('Conteneurs Docker', "docker ps -a --format '{{.Names}}  {{.Image}}  {{.Ports}}'"),
+    run('Paquets installés manuellement (apt)', 'apt-mark showmanual'),
+  ].join('\n');
+}
+
+async function backupSystem(destDir) {
+  const tmp = fs.mkdtempSync('/tmp/ff_sys_');
+  try {
+    fs.writeFileSync(path.join(tmp, 'LISEZMOI.txt'), SYSTEM_README);
+    fs.writeFileSync(path.join(tmp, 'system-info.txt'), systemInfo());
+    const present = SYSTEM_PATHS.filter(function(p) { return fs.existsSync('/' + p); });
+    const out  = path.join(destDir, 'system.tar.gz');
+    const args = ['-czf', out, '--ignore-failed-read', '-C', tmp, 'LISEZMOI.txt', 'system-info.txt', '-C', '/']
+      .concat(present);
+    await new Promise(function(resolve, reject) {
+      require('child_process').execFile('tar', args, { timeout: 120000 }, function(err, stdout, stderr) {
+        if (err) reject(new Error((stderr || '').trim() || err.message)); else resolve();
+      });
+    });
+    try { fs.chmodSync(out, 0o600); } catch (_) {}   // contient des secrets
+    return { size: fs.statSync(out).size, count: present.length };
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 // ── Effectuer une sauvegarde ──────────────────────────────
 async function runBackup() {
   const settings  = await getBackupSettings();
@@ -138,10 +227,10 @@ async function runBackup() {
                  String(now.getMinutes()).padStart(2,'0');
 
   const report = {
-    stamp, success: false, error: null, type: 'Complète',
+    stamp, success: false, error: null, systemError: null, type: 'Complète',
     date: now.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}),
     time: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
-    dbSize: 0,
+    dbSize: 0, systemSize: 0,
     totalSize: 0, deleted: [], destination: '', duration: 0,
   };
 
@@ -192,17 +281,25 @@ async function runBackup() {
       throw new Error('Dump de la base vide ou incomplet (' + report.dbSize + ' octets)');
     }
 
+    // ── Configuration système (non bloquant : signalé dans le rapport) ──
+    try {
+      report.systemSize = (await backupSystem(destDir)).size;
+    } catch (e) {
+      report.systemError = e.message;
+      console.error('[Backup] Configuration système non sauvegardée :', e.message);
+    }
+
     // ── Manifest ────────────────────────────────────────
     fs.writeFileSync(path.join(destDir,'manifest.json'), JSON.stringify({
       stamp, date: now.toISOString(), type: report.type,
-      dbSize: report.dbSize,
+      dbSize: report.dbSize, systemSize: report.systemSize,
     }, null, 2));
 
     // Enregistrer les métadonnées en BDD pour affichage même si NAS non monté
     const metaKey = 'backup_meta_' + stamp;
     const metaVal = JSON.stringify({
       stamp, date: now.toISOString(), type: report.type,
-      dbSize: report.dbSize,
+      dbSize: report.dbSize, systemSize: report.systemSize,
       destination: report.destination,
     });
     await db.query(

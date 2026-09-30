@@ -85,7 +85,8 @@ async function sendBackupReport(report) {
   const dur  = dmin > 0 ? dmin + ' min ' + dsec + ' s' : dsec + ' s';
   const when = report.date + ' à ' + report.time;
 
-  const subject = (report.success ? '[OK] ' : '[ERREUR] ') + 'Sauvegarde FilaFlow — ' + report.date + ' ' + report.time;
+  const tag = !report.success ? '[ERREUR] ' : (report.systemError ? '[OK, config système manquante] ' : '[OK] ');
+  const subject = tag + 'Sauvegarde FilaFlow — ' + report.date + ' ' + report.time;
   const html = report.success
     ? page('ok',
         '<h2>Sauvegarde réussie</h2><span class="badge">OK</span><table>' +
@@ -93,10 +94,13 @@ async function sendBackupReport(report) {
         '<tr><td>Durée</td><td>' + dur + '</td></tr>' +
         '<tr><td>Destination</td><td>' + esc(report.destination) + '</td></tr>' +
         '<tr><td>Base de données</td><td>' + formatSize(report.dbSize) + '</td></tr>' +
+        '<tr><td>Configuration système</td><td>' +
+          (report.systemError ? '<span style="color:#dc2626">non sauvegardée</span>' : formatSize(report.systemSize)) + '</td></tr>' +
         '<tr><td>Espace total utilisé</td><td>' + formatSize(report.totalSize) + '</td></tr>' +
         (report.deleted && report.deleted.length
           ? '<tr><td>Supprimées (rétention)</td><td>' + report.deleted.map(esc).join('<br>') + '</td></tr>' : '') +
-        '</table>')
+        '</table>' +
+        (report.systemError ? '<div class="err">Configuration système : ' + esc(report.systemError) + '</div>' : ''))
     : page('ko',
         '<h2>Échec de la sauvegarde</h2><span class="badge">ERREUR</span>' +
         '<p style="color:#6b7280;font-size:13px">Sauvegarde du ' + esc(when) +

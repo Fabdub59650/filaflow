@@ -1,5 +1,17 @@
 # Changelog — FilaFlow
 
+## 1.8.0 — septembre 2026 — sauvegarde de la configuration système
+
+- Chaque sauvegarde contient désormais system.tar.gz à côté de database.sql.gz : configuration
+  Nginx et certificats, .env (identifiants de la base et clé de chiffrement), stack Docker
+  Adminer, service systemd, réseau, crontabs, config.txt/cmdline.txt, plus un inventaire
+  (system-info.txt : paquets, services, conteneurs, versions) et une procédure de reconstruction
+  (LISEZMOI.txt). Archive en mode 600 : elle contient des secrets.
+- Un échec de l'archive système ne fait pas échouer la sauvegarde : il est signalé dans le
+  rapport email (« config système manquante ») et dans les logs
+- Tableau des sauvegardes : colonne « Système »
+- .env.example mis à jour (valeurs FilaFlow)
+
 ## 1.7.1 — septembre 2026 — PrintFlow retiré du Pi
 
 - Suppression de scripts/migrate-from-printflow.sh (migration terminée)
