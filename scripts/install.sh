@@ -1,12 +1,6 @@
 #!/bin/bash
 # ── FilaFlow — Installation sur Raspberry Pi ─────────────────────
 # Usage : sudo bash scripts/install.sh
-#
-# Sur un Pi où PrintFlow est déjà installé :
-#   - la configuration Nginx existante est conservée (elle relaie déjà
-#     vers 127.0.0.1:3000, le port de FilaFlow) ;
-#   - le service PrintFlow est arrêté et désactivé (même port, même lecteur
-#     NFC), sans rien supprimer : retour arrière possible à tout moment.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -102,10 +96,7 @@ echo "  ✓ Modules installés"
 
 # ── 6. Nginx ──────────────────────────────────────────────
 echo "[6/7] Nginx..."
-if [ -e /etc/nginx/sites-enabled/printflow ]; then
-  echo "  ✓ Configuration PrintFlow existante détectée : conservée telle quelle"
-  echo "    (HTTPS, Adminer, Cockpit… elle relaie déjà vers le port 3000)"
-elif [ -e /etc/nginx/sites-enabled/filaflow ]; then
+if [ -e /etc/nginx/sites-enabled/filaflow ]; then
   echo "  ✓ Configuration FilaFlow déjà en place"
 else
   cp "${PROJECT_DIR}/nginx/filaflow.conf" /etc/nginx/sites-available/filaflow
@@ -117,37 +108,21 @@ fi
 
 # ── 7. Service systemd ────────────────────────────────────
 echo "[7/7] Service systemd..."
-if systemctl list-unit-files printflow.service >/dev/null 2>&1 && \
-   systemctl list-unit-files printflow.service | grep -q printflow; then
-  echo "  PrintFlow est installé sur ce Pi (même port 3000, même lecteur NFC)."
-  read -p "  Arrêter et désactiver PrintFlow maintenant ? (rien n'est supprimé) [o/N] " stop_pf
-  if [[ "$stop_pf" == "o" || "$stop_pf" == "O" ]]; then
-    systemctl disable --now printflow --quiet || true
-    echo "  ✓ PrintFlow arrêté et désactivé"
-  else
-    echo "  ⚠ FilaFlow ne sera pas démarré tant que PrintFlow tourne."
-    echo "    Plus tard : sudo systemctl disable --now printflow && sudo systemctl enable --now filaflow"
-  fi
-fi
 cp "${PROJECT_DIR}/systemd/filaflow.service" /etc/systemd/system/filaflow.service
 systemctl daemon-reload
 systemctl enable filaflow --quiet
-if ! systemctl is-active --quiet printflow 2>/dev/null; then
-  systemctl restart filaflow
-  sleep 4
-  if systemctl is-active --quiet filaflow; then
-    IP=$(hostname -I | awk '{print $1}')
-    echo ""
-    echo "========================================"
-    echo "  ✅ FilaFlow v${VERSION} installé et démarré"
-    echo "========================================"
-    echo "  Accès        : http://${IP}  (ou votre adresse HTTPS habituelle)"
-    echo "  Logs         : sudo journalctl -u filaflow -f"
-    echo "  Données      : sudo bash ${INSTALL_DIR}/scripts/migrate-from-printflow.sh"
-    echo "  Retour à PrintFlow : sudo systemctl disable --now filaflow && sudo systemctl enable --now printflow"
-    echo ""
-  else
-    echo "  ⚠ Le service n'a pas démarré : sudo journalctl -u filaflow -n 50"
-    exit 1
-  fi
+systemctl restart filaflow
+sleep 4
+if systemctl is-active --quiet filaflow; then
+  IP=$(hostname -I | awk '{print $1}')
+  echo ""
+  echo "========================================"
+  echo "  ✅ FilaFlow v${VERSION} installé et démarré"
+  echo "========================================"
+  echo "  Accès        : http://${IP}  (ou https://$(hostname).local après setup-https.sh)"
+  echo "  Logs         : sudo journalctl -u filaflow -f"
+  echo ""
+else
+  echo "  ⚠ Le service n'a pas démarré : sudo journalctl -u filaflow -n 50"
+  exit 1
 fi

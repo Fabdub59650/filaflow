@@ -1,7 +1,10 @@
 #!/bin/bash
 # ── FilaFlow — Configuration HTTPS ──────────────────────
 # Usage : sudo bash scripts/setup-https.sh
-# Génère un certificat SSL auto-signé et configure Nginx en HTTPS
+# Génère un certificat SSL auto-signé pour <nom d'hôte>.local et l'IP du Pi,
+# puis configure Nginx en HTTPS. Si la configuration Nginx est déjà en HTTPS,
+# seul le certificat est régénéré : la configuration existante (Adminer,
+# Cockpit…) est conservée.
 
 set -e
 
@@ -50,8 +53,8 @@ openssl req -x509 -nodes -days 3650 \
   -newkey rsa:2048 \
   -keyout "$SSL_DIR/privkey.pem" \
   -out    "$SSL_DIR/fullchain.pem" \
-  -subj "/CN=printflow.local/O=FilaFlow/OU=Local" \
-  -addext "subjectAltName=IP:${LOCAL_IP},DNS:${HOSTNAME}.local,DNS:printflow.local" \
+  -subj "/CN=${HOSTNAME}.local/O=FilaFlow/OU=Local" \
+  -addext "subjectAltName=DNS:${HOSTNAME}.local,IP:${LOCAL_IP}" \
   2>/dev/null
 
 chmod 600 "$SSL_DIR/privkey.pem"
@@ -59,6 +62,14 @@ chmod 644 "$SSL_DIR/fullchain.pem"
 echo "  ✓ Certificat généré dans $SSL_DIR"
 
 echo "[3/4] Configuration Nginx HTTPS..."
+if [ -f "$NGINX_CONF" ] && grep -q "listen 443" "$NGINX_CONF"; then
+  echo "  ✓ Configuration HTTPS existante conservée (seul le certificat est renouvelé)"
+  if ! grep -q "$SSL_DIR/" "$NGINX_CONF"; then
+    echo "  ⚠ Cette configuration ne pointe pas vers $SSL_DIR :"
+    grep -n "ssl_certificate" "$NGINX_CONF" || true
+    echo "    Adaptez les lignes ssl_certificate pour utiliser le nouveau certificat."
+  fi
+else
 cat > "$NGINX_CONF" << NGINXEOF
 # FilaFlow — Configuration Nginx avec HTTPS
 # Générée par setup-https.sh le $(date '+%d/%m/%Y')
@@ -87,8 +98,8 @@ server {
     add_header X-Frame-Options SAMEORIGIN;
     add_header X-Content-Type-Options nosniff;
 
-    # Taille max upload (fichiers STL, 3MF, etc.)
-    client_max_body_size 350M;
+    # Taille max upload (restauration de sauvegardes)
+    client_max_body_size 100M;
 
     # Proxy vers FilaFlow Node.js
     location / {
@@ -109,8 +120,9 @@ server {
     }
 }
 NGINXEOF
-
+ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/filaflow
 echo "  ✓ Configuration Nginx mise à jour"
+fi
 
 echo "[4/4] Test et rechargement de Nginx..."
 if nginx -t 2>/dev/null; then
@@ -133,7 +145,7 @@ echo "║   ✅  HTTPS configuré avec succès !                      ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  🔒 FilaFlow accessible sur :"
-echo "     https://$LOCAL_IP"
+echo "     https://${HOSTNAME}.local  ou  https://$LOCAL_IP"
 echo ""
 echo "  ⚠  Le navigateur affichera un avertissement la première fois."
 echo "     Pour l'éviter, installez le certificat sur vos appareils :"
@@ -150,7 +162,4 @@ echo "    → Général → Gestion des profils → Faire confiance"
 echo ""
 echo "  Android :"
 echo "    Réglages → Sécurité → Installer certificat → CA"
-echo ""
-echo "  Les notifications push nécessitent HTTPS — elles sont"
-echo "  maintenant disponibles sur tous vos appareils."
 echo ""

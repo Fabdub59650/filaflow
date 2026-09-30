@@ -1,5 +1,15 @@
 # Changelog — FilaFlow
 
+## 1.7.1 — septembre 2026 — PrintFlow retiré du Pi
+
+- Suppression de scripts/migrate-from-printflow.sh (migration terminée)
+- install.sh : plus de détection ni d'arrêt de PrintFlow
+- setup-https.sh : certificat au nom d'hôte du Pi (plus de printflow.local codé en dur) ;
+  si Nginx est déjà en HTTPS, seul le certificat est régénéré et la configuration
+  existante (Adminer, Cockpit…) est conservée
+- Onglet Système : champ « version PrintFlow » retiré de l'API
+- README mis à jour (sections migration et retour à PrintFlow retirées)
+
 ## 1.7.0 — septembre 2026 — rapport de sauvegarde par email
 
 - Paramètres › Sauvegarde : rapport par email « Après chaque sauvegarde », « En cas d'erreur

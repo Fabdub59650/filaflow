@@ -125,11 +125,7 @@ router.get('/system-health', async (req, res) => {
       result.ip = ip || null;
     } catch(_) { result.ip = null; }
 
-    // ── Version PrintFlow ─────────────────────────────────────────────────
-    const [[vRow]] = await db.query("SELECT value FROM settings WHERE key_name='_version'").catch(function(){ return [[null]]; });
-    result.printflow_version = vRow?.value || '—';
-
-    // ── Statut service PrintFlow ──────────────────────────────────────────
+    // ── Statut du service FilaFlow ────────────────────────────────────────
     try {
       const status = execSync('systemctl is-active filaflow 2>/dev/null', { timeout: 2000 }).toString().trim();
       result.service_status = status;

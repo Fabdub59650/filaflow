@@ -5,7 +5,7 @@
  *   POST /api/tigertag/webhook
  *   { "uid_hex": "04A3B2C1D0E5F6", "weight_gross": 875 }
  *
- * PrintFlow :
+ * FilaFlow :
  *   1. Trouve le filament par nfc_uid
  *   2. Calcule le poids net (brut - bobine vide)
  *   3. Enregistre la pesée
