@@ -85,7 +85,12 @@ async function sendBackupReport(report) {
   const dur  = dmin > 0 ? dmin + ' min ' + dsec + ' s' : dsec + ' s';
   const when = report.date + ' à ' + report.time;
 
-  const tag = !report.success ? '[ERREUR] ' : (report.systemError ? '[OK, config système manquante] ' : '[OK] ');
+  const extras = (report.extras || []).filter(function(x) { return !x.skipped; });
+  const extraErrors = extras.filter(function(x) { return x.error; });
+  const missing = [];
+  if (report.systemError) missing.push('config système');
+  extraErrors.forEach(function(x) { missing.push('base ' + x.label); });
+  const tag = !report.success ? '[ERREUR] ' : (missing.length ? '[OK, ' + missing.join(' et ') + ' manquante] ' : '[OK] ');
   const subject = tag + 'Sauvegarde FilaFlow — ' + report.date + ' ' + report.time;
   const html = report.success
     ? page('ok',
@@ -96,11 +101,16 @@ async function sendBackupReport(report) {
         '<tr><td>Base de données</td><td>' + formatSize(report.dbSize) + '</td></tr>' +
         '<tr><td>Configuration système</td><td>' +
           (report.systemError ? '<span style="color:#dc2626">non sauvegardée</span>' : formatSize(report.systemSize)) + '</td></tr>' +
+        extras.map(function(x) {
+          return '<tr><td>Base ' + esc(x.label) + '</td><td>' +
+            (x.error ? '<span style="color:#dc2626">non sauvegardée</span>' : formatSize(x.size)) + '</td></tr>';
+        }).join('') +
         '<tr><td>Espace total utilisé</td><td>' + formatSize(report.totalSize) + '</td></tr>' +
         (report.deleted && report.deleted.length
           ? '<tr><td>Supprimées (rétention)</td><td>' + report.deleted.map(esc).join('<br>') + '</td></tr>' : '') +
         '</table>' +
-        (report.systemError ? '<div class="err">Configuration système : ' + esc(report.systemError) + '</div>' : ''))
+        (report.systemError ? '<div class="err">Configuration système : ' + esc(report.systemError) + '</div>' : '') +
+        extraErrors.map(function(x) { return '<div class="err">Base ' + esc(x.label) + ' : ' + esc(x.error) + '</div>'; }).join(''))
     : page('ko',
         '<h2>Échec de la sauvegarde</h2><span class="badge">ERREUR</span>' +
         '<p style="color:#6b7280;font-size:13px">Sauvegarde du ' + esc(when) +

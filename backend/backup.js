@@ -137,6 +137,8 @@ const SYSTEM_PATHS = [
   'opt/stacks',
   'etc/mysql',
   'etc/systemd/system/filaflow.service',
+  'opt/prepflow/backend/.env',
+  'etc/systemd/system/prepflow.service',
   'etc/log2ram.conf',
   'etc/hostname',
   'etc/hosts',
@@ -156,7 +158,7 @@ const SYSTEM_README = [
   '',
   'Contenu : fichiers de configuration du Pi (chemins relatifs à la racine /),',
   'system-info.txt (inventaire : paquets, services, conteneurs, versions).',
-  'La base de données est à côté, dans database.sql.gz.',
+  'Les bases de données sont à côté : database.sql.gz (FilaFlow), prepflow.sql.gz (PrepFlow).',
   '',
   'ATTENTION : cette archive contient des secrets (clé privée du certificat,',
   'mots de passe de la base et du Wi-Fi, clé de chiffrement). À garder sur le NAS.',
@@ -172,9 +174,11 @@ const SYSTEM_README = [
   '  3. Copier opt/filaflow/backend/.env dans /opt/filaflow/backend/ AVANT install.sh',
   '     puis : git clone du dépôt ; sudo DB_PASS=<DB_PASSWORD du .env> bash scripts/install.sh',
   '  4. Recopier les autres fichiers utiles depuis ~/restore/sys :',
-  '       etc/nginx/sites-available/, etc/nginx/ssl/',
+  '       etc/nginx/sites-available/, etc/nginx/ssl/, etc/nginx/snippets/',
   '       opt/stacks/ puis : cd /opt/stacks/adminer && sudo docker compose up -d',
   '  5. Restaurer la base : gunzip -c database.sql.gz | sudo mariadb filaflow',
+  '     PrepFlow (si présent) : .env de opt/prepflow/backend/ en place, install.sh de PrepFlow,',
+  '     puis : gunzip -c prepflow.sql.gz | sudo mariadb prepflow',
   '  6. sudo systemctl restart filaflow nginx',
   "  Paquets et services d'origine : voir system-info.txt",
   '',
@@ -220,6 +224,51 @@ async function backupSystem(destDir) {
   }
 }
 
+// ── Bases des applications voisines (PrepFlow…) ───────────
+// Chaque base est sauvegardée avec les identifiants du .env de son application.
+// Si l'application n'est pas installée (.env absent), elle est simplement ignorée.
+// Un échec n'annule pas la sauvegarde de FilaFlow : il est signalé dans le rapport.
+const EXTRA_DATABASES = [
+  { key: 'prepflow', label: 'PrepFlow', file: 'prepflow.sql.gz', env: '/opt/prepflow/backend/.env' },
+];
+
+function readEnvFile(file) {
+  const out = {};
+  fs.readFileSync(file, 'utf8').split('\n').forEach(function(line) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  });
+  return out;
+}
+
+async function dumpExtraDatabase(entry, destDir) {
+  if (!fs.existsSync(entry.env)) return { skipped: true };
+  const env  = readEnvFile(entry.env);
+  const name = env.DB_NAME || entry.key;
+  const user = env.DB_USER || entry.key;
+  if (!env.DB_PASSWORD) throw new Error('DB_PASSWORD absent de ' + entry.env);
+  const out = path.join(destDir, entry.file);
+  await new Promise(function(resolve, reject) {
+    // Mot de passe passé par MYSQL_PWD : il n'apparaît ni dans la ligne de commande ni dans les erreurs
+    require('child_process').execFile('/bin/bash',
+      ['-c', 'set -o pipefail; mysqldump -h"$1" -u"$2" --single-transaction "$3" | gzip > "$4"',
+       'dump', env.DB_HOST || 'localhost', user, name, out],
+      { env: Object.assign({}, process.env, { MYSQL_PWD: env.DB_PASSWORD }), timeout: 120000 },
+      function(err, stdout, stderr) {
+        if (err) reject(new Error((stderr || '').trim() || 'code ' + err.code)); else resolve();
+      });
+  }).catch(function(e) {
+    try { fs.rmSync(out, { force: true }); } catch(_) {}
+    throw e;
+  });
+  const size = fs.statSync(out).size;
+  if (size < 200) {
+    try { fs.rmSync(out, { force: true }); } catch(_) {}
+    throw new Error('Dump vide ou incomplet (' + size + ' octets)');
+  }
+  return { size: size };
+}
+
 // ── Effectuer une sauvegarde ──────────────────────────────
 async function runBackup() {
   const settings  = await getBackupSettings();
@@ -235,7 +284,7 @@ async function runBackup() {
     stamp, success: false, error: null, systemError: null, type: 'Complète',
     date: now.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}),
     time: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
-    dbSize: 0, systemSize: 0,
+    dbSize: 0, systemSize: 0, extras: [],
     totalSize: 0, deleted: [], destination: '', duration: 0,
   };
 
@@ -294,19 +343,34 @@ async function runBackup() {
       console.error('[Backup] Configuration système non sauvegardée :', e.message);
     }
 
+    // ── Bases des applications voisines (non bloquant) ──
+    for (const entry of EXTRA_DATABASES) {
+      const item = { key: entry.key, label: entry.label, file: entry.file, size: 0, error: null, skipped: false };
+      try {
+        const r = await dumpExtraDatabase(entry, destDir);
+        if (r.skipped) item.skipped = true; else item.size = r.size;
+      } catch (e) {
+        item.error = e.message;
+        console.error('[Backup] Base ' + entry.label + ' non sauvegardée :', e.message);
+      }
+      report.extras.push(item);
+    }
+    const extraSizes = {};
+    report.extras.forEach(function(x) { if (!x.skipped) extraSizes[x.key + 'Size'] = x.size; });
+
     // ── Manifest ────────────────────────────────────────
-    fs.writeFileSync(path.join(destDir,'manifest.json'), JSON.stringify({
+    fs.writeFileSync(path.join(destDir,'manifest.json'), JSON.stringify(Object.assign({
       stamp, date: now.toISOString(), type: report.type,
       dbSize: report.dbSize, systemSize: report.systemSize,
-    }, null, 2));
+    }, extraSizes), null, 2));
 
     // Enregistrer les métadonnées en BDD pour affichage même si NAS non monté
     const metaKey = 'backup_meta_' + stamp;
-    const metaVal = JSON.stringify({
+    const metaVal = JSON.stringify(Object.assign({
       stamp, date: now.toISOString(), type: report.type,
       dbSize: report.dbSize, systemSize: report.systemSize,
       destination: report.destination,
-    });
+    }, extraSizes));
     await db.query(
       'INSERT INTO settings (key_name,value) VALUES (?,?) ON DUPLICATE KEY UPDATE value=?',
       [metaKey, metaVal, metaVal]

@@ -1,5 +1,15 @@
 # Changelog — FilaFlow
 
+## 1.9.0 — septembre 2026 — sauvegarde de la base PrepFlow
+
+- Chaque sauvegarde contient aussi prepflow.sql.gz, dump de la base de PrepFlow réalisé avec les
+  identifiants de /opt/prepflow/backend/.env (mot de passe transmis par MYSQL_PWD, jamais affiché)
+- Non bloquant : si PrepFlow n'est pas installé, rien n'est fait ; si le dump échoue, la sauvegarde
+  FilaFlow est conservée et l'échec apparaît dans le rapport email (« [OK, base PrepFlow manquante] »)
+- Rapport email : ligne « Base PrepFlow » ; Paramètres › Sauvegarde : colonne « PrepFlow »
+- system.tar.gz inclut le .env et le service systemd de PrepFlow
+- docs/RECONSTRUCTION.md : nouvelle étape PrepFlow, copie du bloc Nginx /prepflow/ avec la configuration
+
 ## 1.8.2 — septembre 2026 — procédure de reconstruction restructurée
 
 - docs/RECONSTRUCTION.md en trois temps : récupérer, installer, restaurer, puis vérifier

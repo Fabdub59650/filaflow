@@ -9,7 +9,8 @@ Chaque dossier de sauvegarde (`/filaflow/AAAA-MM-JJ_HH-MM/` sur le NAS) contient
 | Fichier | Contenu |
 |---|---|
 | `database.sql.gz` | Dump complet de la base `filaflow` |
-| `system.tar.gz` | Configuration du Pi : Nginx et certificats, `.env` de FilaFlow, stack Docker Adminer, MariaDB, réseau, service systemd, log2ram, crontabs, `config.txt`/`cmdline.txt`, plus `system-info.txt` (paquets, services, conteneurs, versions) et `LISEZMOI.txt` |
+| `prepflow.sql.gz` | Dump complet de la base `prepflow` (seulement si PrepFlow est installé) |
+| `system.tar.gz` | Configuration du Pi : Nginx et certificats, `.env` de FilaFlow et de PrepFlow, stack Docker Adminer, MariaDB, réseau, service systemd, log2ram, crontabs, `config.txt`/`cmdline.txt`, plus `system-info.txt` (paquets, services, conteneurs, versions) et `LISEZMOI.txt` |
 
 > `system.tar.gz` contient des secrets (clé privée du certificat, mots de passe de la base et du Wi-Fi, clé de chiffrement des mots de passe NAS et SMTP). Ne pas le copier ailleurs que sur le NAS ou sur le Pi.
 
@@ -21,7 +22,7 @@ Le fichier le plus important est **`.env`** : il contient le mot de passe de la 
 
 ### 1. Télécharger la dernière sauvegarde
 
-Depuis le Mac, dans le Finder : partage du NAS › `filaflow` › dossier le plus récent. Copier `database.sql.gz` et `system.tar.gz` sur le bureau.
+Depuis le Mac, dans le Finder : partage du NAS › `filaflow` › dossier le plus récent. Copier `database.sql.gz`, `prepflow.sql.gz` et `system.tar.gz` sur le bureau.
 
 ### 2. Préparer la carte SD
 
@@ -41,7 +42,7 @@ Démarrer le Pi, puis vérifier depuis le Mac : `ping filaflow.local`.
 Depuis le Mac :
 
 ```bash
-scp ~/Desktop/database.sql.gz ~/Desktop/system.tar.gz pi@filaflow.local:~/
+scp ~/Desktop/database.sql.gz ~/Desktop/prepflow.sql.gz ~/Desktop/system.tar.gz pi@filaflow.local:~/
 ```
 
 Sur le Pi :
@@ -146,6 +147,8 @@ Pour pousser vers GitHub depuis le Pi, reconfigurer ensuite les identifiants (je
 ```bash
 sudo cp ~/restore/sys/etc/nginx/sites-available/filaflow /etc/nginx/sites-available/filaflow
 sudo cp -r ~/restore/sys/etc/nginx/ssl /etc/nginx/
+# Bloc /prepflow/ appelé par la configuration : sans lui, nginx -t échoue
+sudo cp ~/restore/sys/etc/nginx/snippets/prepflow.conf /etc/nginx/snippets/ 2>/dev/null || true
 sudo cp ~/restore/sys/etc/nginx/.htpasswd* /etc/nginx/ 2>/dev/null || true
 sudo ln -sf /etc/nginx/sites-available/filaflow /etc/nginx/sites-enabled/filaflow
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -186,7 +189,25 @@ cd /opt/stacks/adminer && sudo docker compose up -d
 
 Accès : `https://filaflow.local/adminer/` (serveur `172.18.0.1`, utilisateur `pi`).
 
-### 10. Réglages système
+### 10. PrepFlow
+
+À faire seulement si PrepFlow était installé (`prepflow.sql.gz` présent dans la sauvegarde). Même principe que FilaFlow : le `.env` d'origine d'abord, pour garder le même mot de passe de base.
+
+```bash
+sudo mkdir -p /opt/prepflow/backend
+sudo cp ~/restore/sys/opt/prepflow/backend/.env /opt/prepflow/backend/.env
+
+git clone https://github.com/Fabdub59650/prepflow.git ~/prepflow
+cd ~/prepflow
+sudo bash scripts/install.sh
+
+gunzip -c ~/prepflow.sql.gz | sudo mariadb prepflow
+sudo systemctl restart prepflow
+```
+
+`install.sh` réutilise le mot de passe du `.env`, donne les droits à l'utilisateur Adminer `pi` (recréé à l'étape 9) et détecte que la configuration Nginx restaurée contient déjà le bloc `/prepflow/`.
+
+### 11. Réglages système
 
 ```bash
 # Configuration log2ram d'origine (taille de la zone en RAM…)
@@ -214,7 +235,8 @@ sudo reboot
 
 - [ ] `https://filaflow.local` : connexion et liste des filaments
 - [ ] Paramètres › Sauvegarde : **Tester** la connexion NAS, puis **Envoyer un test** pour l'email
-- [ ] **Sauvegarder maintenant** : mail « [OK] » reçu, colonne « Système » renseignée
+- [ ] **Sauvegarder maintenant** : mail « [OK] » reçu, colonnes « Système » et « PrepFlow » renseignées
+- [ ] `https://filaflow.local/prepflow/` : liste des projets
 - [ ] Balance : une pesée arrive dans FilaFlow
 - [ ] Lecteur NFC : lecture d'une puce
 - [ ] Adminer (`/adminer/`) et Cockpit (`/cockpit`) répondent
@@ -223,5 +245,5 @@ sudo reboot
 Pour finir, supprimer les fichiers de restauration (ils contiennent des secrets) :
 
 ```bash
-sudo rm -rf ~/restore ~/system.tar.gz ~/database.sql.gz
+sudo rm -rf ~/restore ~/system.tar.gz ~/database.sql.gz ~/prepflow.sql.gz
 ```
