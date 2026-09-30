@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.8.2 — septembre 2026 — procédure de reconstruction restructurée
+
+- docs/RECONSTRUCTION.md en trois temps : récupérer, installer, restaurer, puis vérifier
+- Nouvelle étape « Installations préalables » : mise à jour du système, git, Docker et Compose,
+  Cockpit, log2ram (méthode officielle via le dépôt APT de son auteur), un seul redémarrage
+- Contrôle des paquets oubliés : comparaison avec l'inventaire de l'ancien Pi (system-info.txt)
+- Dossier de travail ~/restore au lieu de /tmp (vidé au redémarrage) ; LISEZMOI.txt aligné
+
 ## 1.8.1 — septembre 2026 — procédure de reconstruction
 
 - Nouveau docs/RECONSTRUCTION.md : reconstruire le Pi sur une carte SD neuve à partir des
