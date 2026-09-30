@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.8.1 — septembre 2026 — procédure de reconstruction
+
+- Nouveau docs/RECONSTRUCTION.md : reconstruire le Pi sur une carte SD neuve à partir des
+  sauvegardes du NAS (restauration du .env avant install.sh, base, Nginx et certificat, réseau,
+  Adminer, outils système, vérifications) ; lien depuis le README et depuis LISEZMOI.txt
+- system.tar.gz inclut désormais /etc/mysql (bind-address nécessaire à Adminer)
+
 ## 1.8.0 — septembre 2026 — sauvegarde de la configuration système
 
 - Chaque sauvegarde contient désormais system.tar.gz à côté de database.sql.gz : configuration

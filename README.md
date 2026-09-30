@@ -32,6 +32,11 @@ sudo bash scripts/setup-https.sh
 Si Nginx est déjà configuré en HTTPS, le script régénère seulement le certificat et conserve la
 configuration existante (Adminer, Cockpit…).
 
+## Sauvegarde et reconstruction
+
+Chaque sauvegarde contient la base (`database.sql.gz`) et la configuration du Pi (`system.tar.gz`).
+Procédure pour reconstruire le Pi sur une carte SD neuve : [docs/RECONSTRUCTION.md](docs/RECONSTRUCTION.md).
+
 ## Mise à jour
 
 ```bash
