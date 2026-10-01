@@ -95,6 +95,7 @@ body { background: var(--bg); color: var(--text); }
 .btn-primary { background: var(--text); color: var(--bg2); border-color: transparent; }
 .btn-primary:hover { opacity: 0.85; background: var(--text); }
 .btn-sm { padding: 4px 10px; font-size: 11px; }
+.prepflow-link { text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 .btn-danger { color: var(--danger); border-color: rgba(163,45,45,0.3); }
 .btn-danger:hover { background: var(--danger-bg); }
 .btn-success { color: var(--success); border-color: rgba(99,153,34,0.3); }

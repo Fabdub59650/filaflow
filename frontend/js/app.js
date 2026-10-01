@@ -96,6 +96,24 @@ function applyColorMode(mode, darkFrom, darkTo) {
   }
 }
 
+// ── Lien vers PrepFlow ────────────────────────────────────────────────────
+// Le bouton n'apparaît que si PrepFlow est installé et répond sur /prepflow/.
+(function initPrepflowLink() {
+  const link = document.getElementById('prepflow-link');
+  if (!link) return;
+  const ctrl = new AbortController();
+  setTimeout(function() { ctrl.abort(); }, 3000);
+  fetch('/prepflow/api/meta', { cache: 'no-store', signal: ctrl.signal })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(meta) {
+      if (meta && meta.version) {
+        link.style.display = '';
+        link.title = 'Préparer des impressions dans PrepFlow (v' + meta.version + ')';
+      }
+    })
+    .catch(function() {});
+})();
+
 // Valeurs par défaut — évite tout affichage parasite avant le chargement des settings
 window._showPrices             = false;
 window._showLocations          = false;

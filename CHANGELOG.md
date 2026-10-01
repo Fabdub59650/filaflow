@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.9.1 — septembre 2026 — lien vers PrepFlow
+
+- Bouton « Ouvrir PrepFlow » dans la barre du haut, à côté du bouton clair/sombre
+- Affiché seulement si PrepFlow est installé et répond sur /prepflow/ (vérification au chargement)
+- Service worker : n'intercepte plus /prepflow/ ni /adminer/. Auparavant, ses règles de cache
+  s'appliquaient aussi à PrepFlow (même hôte) et pouvaient servir une réponse d'API PrepFlow
+  périmée sur réseau lent. Nom du cache changé pour purger ces entrées.
+
 ## 1.9.0 — septembre 2026 — sauvegarde de la base PrepFlow
 
 - Chaque sauvegarde contient aussi prepflow.sql.gz, dump de la base de PrepFlow réalisé avec les
