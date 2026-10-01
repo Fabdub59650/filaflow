@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.10.1 — octobre 2026 — année dans les dates
+
+- Toutes les dates avec heure s'affichent avec l'année, au format 01.10.2026 19:21 : cartes,
+  historique des pesées de la bobine, fenêtre « Pesée incohérente », historique NFC, onglet Historique
+- Cartes : la date de dernière pesée est affichée seule (infobulle « Dernière pesée »), pour tenir
+  à côté du bouton ; le pied de carte passe à la ligne si la place manque (il débordait vers 1100 px)
+
 ## 1.10.0 — octobre 2026 — inventaire des bobines
 
 - Outils › Inventaire : liste des bobines actives dont le poids est à vérifier, regroupées par priorité

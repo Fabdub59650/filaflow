@@ -70,9 +70,13 @@ function fmtDate(str) {
   return new Date(str).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
+// Date et heure au format « 01.10.2026 19:21 » (année toujours affichée)
 function fmtDateTime(str) {
   if (!str) return '—';
-  return new Date(str).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  const d = new Date(String(str).replace(' ', 'T'));
+  if (isNaN(d)) return String(str);
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 
 function confirmDelete(msg, cb) {

@@ -497,12 +497,8 @@ function fmtWeighDate(str) {
   if (!str) return 'Aucune pesée';
   const d = new Date(String(str).replace(' ', 'T'));
   if (isNaN(d)) return 'Aucune pesée';
-  // L'année n'est affichée que si ce n'est pas l'année en cours
-  const opts = d.getFullYear() === new Date().getFullYear()
-    ? { day: '2-digit', month: '2-digit' }
-    : { day: '2-digit', month: '2-digit', year: 'numeric' };
-  return 'Pesée ' + d.toLocaleDateString('fr-FR', opts).replace(/\//g, '.') +
-    ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  // Sans le mot « Pesée » : avec l'année, la date doit tenir à côté du bouton sur les cartes
+  return fmtDateTime(str);
 }
 
 function spoolCardHtml(f) {
@@ -539,7 +535,7 @@ function spoolCardHtml(f) {
     '</div>' +
     '<div class="spool-weight"><div><span class="w">' + Math.round(rem) + '</span> <span class="wt">/ ' + Math.round(total) + ' g</span></div>' +
       (len ? '<span class="len">≈ ' + len + '</span>' : '') + '</div>' +
-    '<div class="spool-foot"><span class="spool-last">' + fmtWeighDate(f.last_weighed_at) + '</span>' +
+    '<div class="spool-foot"><span class="spool-last" title="' + (f.last_weighed_at ? 'Dernière pesée : ' + fmtDateTime(f.last_weighed_at) : 'Aucune pesée enregistrée') + '">' + fmtWeighDate(f.last_weighed_at) + '</span>' +
       '<span class="spool-actions" onclick="event.stopPropagation()">' +
         '<button type="button" class="btn btn-sm" onclick="openWeighingModal(' + f.id + ')">Pesée</button>' +
         '<button type="button" class="btn btn-sm" aria-label="Plus d\'actions" onclick="toggleFilamentMenu(' + f.id + ',this)">•••</button>' +

@@ -1,6 +1,6 @@
 {
   "name": "filaflow",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "FilaFlow — Gestion du stock de filament (pesées, NFC)",
   "main": "server.js",
   "scripts": {

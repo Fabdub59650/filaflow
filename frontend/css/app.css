@@ -373,7 +373,7 @@ input[type=checkbox], input[type=radio] { min-height: 0; width: auto; accent-col
 .spool-weight .w { font-family: var(--font-mono); font-weight: 500; font-size: 28px; line-height: 1; }
 .spool-card.low .spool-weight .w { color: var(--accent); }
 .spool-weight .wt, .spool-weight .len { font-family: var(--font-mono); font-size: 12px; color: var(--text3); }
-.spool-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--border2); padding-top: 10px; }
+.spool-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--border2); padding-top: 10px; }
 .spool-last { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--text3); text-transform: uppercase; }
 .spool-actions { display: flex; gap: 6px; position: relative; }
 
