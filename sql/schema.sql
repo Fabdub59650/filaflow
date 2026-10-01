@@ -169,3 +169,11 @@ UPDATE `filaments` SET `elegoo_subtype` = CASE
     ELSE NULL
   END
   WHERE `elegoo_subtype` IN ('Standard','Matte','Silk','Rapid','CF','GF','TPU 87A','ASA','ASA-CF','ABS-CF','PA-GF');
+
+-- ── v1.10.0 — Inventaire des bobines ────────────────────────
+-- Date de la dernière validation « poids confirmé » (ce n'est pas une pesée)
+ALTER TABLE `filaments` ADD COLUMN IF NOT EXISTS `inventory_checked_at` datetime DEFAULT NULL
+  COMMENT 'Dernière validation de poids par l''inventaire (sans pesée)';
+INSERT IGNORE INTO `settings` (key_name, value) VALUES ('inventory_enabled','true');
+INSERT IGNORE INTO `settings` (key_name, value) VALUES ('inventory_days','90');
+INSERT IGNORE INTO `settings` (key_name, value) VALUES ('inventory_tolerance','10');

@@ -1,5 +1,19 @@
 # Changelog — FilaFlow
 
+## 1.10.0 — octobre 2026 — inventaire des bobines
+
+- Outils › Inventaire : liste des bobines actives dont le poids est à vérifier, regroupées par priorité
+  - Valeurs incohérentes : poids qui remonte d'une pesée à l'autre (au-delà de la tolérance),
+    pesée sous la tare, poids restant supérieur au poids total
+  - Données à compléter : tare manquante, bobine à 0 g non archivée
+  - Pesées anciennes : jamais pesée, ou dernière pesée / validation plus vieille que le délai
+- Actions : Peser (note « Inventaire » pré-remplie), Confirmer (valide le poids sans pesée, remet le délai
+  à zéro, tracé dans le journal mais pas dans l'historique des pesées), Fiche, Archiver
+- Compteur de bobines à vérifier sur le bouton Outils
+- Paramètres › Apparence : activation, délai (90 jours par défaut), tolérance (10 g par défaut)
+- Cartes : la date de dernière pesée affiche l'année quand ce n'est pas l'année en cours
+- Base : colonne filaments.inventory_checked_at (ajoutée automatiquement à la mise à jour)
+
 ## 1.9.1 — septembre 2026 — lien vers PrepFlow
 
 - Bouton « Ouvrir PrepFlow » dans la barre du haut, à côté du bouton clair/sombre

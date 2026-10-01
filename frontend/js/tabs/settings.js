@@ -137,6 +137,29 @@ async function renderSettings() {
                  style="width:70px" onchange="saveSettings()">
           <span style="font-size:13px;color:var(--text3)">% restant</span>
         </div>
+        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+          <div>
+            <div style="font-size:13px">Inventaire des bobines</div>
+            <div style="font-size:11px;color:var(--text3)">Signale dans Outils › Inventaire les bobines pesées il y a longtemps ou aux valeurs incohérentes</div>
+          </div>
+          <div onclick="toggleSetting('inventory_enabled', this)" id="toggle-inventory"
+               data-enabled="${settings.inventory_enabled!=='false'?'1':'0'}"
+               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
+                      background:${settings.inventory_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
+            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
+                        top:2px;transition:left 0.2s;left:${settings.inventory_enabled!=='false'?'19px':'2px'}"></div>
+          </div>
+        </label>
+        <div id="inventory-wrap" style="display:${settings.inventory_enabled!=='false'?'flex':'none'};align-items:center;gap:10px;padding-left:4px;flex-wrap:wrap">
+          <label style="font-size:13px;color:var(--text2)" for="set-inventory-days">Pesée ancienne après</label>
+          <input id="set-inventory-days" type="number" min="7" max="730" step="1"
+                 value="${settings.inventory_days||90}" style="width:80px" onchange="saveSettings()">
+          <span style="font-size:13px;color:var(--text3)">jours</span>
+          <label style="font-size:13px;color:var(--text2);margin-left:12px" for="set-inventory-tolerance">Tolérance</label>
+          <input id="set-inventory-tolerance" type="number" min="0" max="100" step="1"
+                 value="${settings.inventory_tolerance||10}" style="width:70px" onchange="saveSettings()">
+          <span style="font-size:13px;color:var(--text3)">g</span>
+        </div>
       </div>
 
       <div style="margin-top:14px">
@@ -574,6 +597,10 @@ function toggleSetting(key, el) {
     const wrap = document.getElementById('stock-alert-threshold-wrap');
     if (wrap) wrap.style.display = enabled ? 'flex' : 'none';
   }
+  if (key === 'inventory_enabled') {
+    const wrap = document.getElementById('inventory-wrap');
+    if (wrap) wrap.style.display = enabled ? 'flex' : 'none';
+  }
   if (key === 'auth_enabled') {
     const cfg = document.getElementById('auth-config');
     if (cfg) cfg.style.display = enabled ? 'block' : 'none';
@@ -621,6 +648,9 @@ async function saveSettings() {
     show_locations:        togLocs     ? String(togLocs.dataset.enabled     === '1') : 'true',
     stock_alert_enabled:        document.getElementById('toggle-stock-alert')?.dataset.enabled === '1' ? 'true' : 'false',
     stock_alert_threshold:      document.getElementById('set-stock-threshold')?.value || '20',
+    inventory_enabled:          document.getElementById('toggle-inventory')?.dataset.enabled === '0' ? 'false' : 'true',
+    inventory_days:             String(Math.max(7, parseInt(document.getElementById('set-inventory-days')?.value, 10) || 90)),
+    inventory_tolerance:        (function(v) { return isNaN(v) ? '10' : String(Math.max(0, v)); })(parseInt(document.getElementById('set-inventory-tolerance')?.value, 10)),
   };
   try {
     await API.put('/settings', body);

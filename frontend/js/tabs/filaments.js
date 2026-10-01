@@ -248,6 +248,7 @@ const FINISH_OPTIONS  = ['Standard','Brillant','Mat','Soie','Marbre','Bois','Pai
 const SPECIAL_OPTIONS = ['—','Renforcé fibre carbone','Renforcé fibre verre','Flexible','Conducteur','Ignifugé','Alimentaire','UV résistant','Autre'];
 
 async function renderFilaments() {
+  if (typeof _inventoryOpen !== 'undefined' && _inventoryOpen) return renderInventory();
   document.getElementById('page-title').textContent = 'Filaments';
   const activeAdv = countActiveFilAdvanced();
   document.getElementById('topbar-actions').innerHTML =
@@ -262,11 +263,12 @@ async function renderFilaments() {
        Filtres${activeAdv > 0 ? ' · ' + activeAdv : ''}
      </button>
      <div style="position:relative">
-       <button type="button" class="btn" onclick="toggleFilMoreMenu(event)" aria-haspopup="true">Outils ▾</button>
+       <button type="button" class="btn" onclick="toggleFilMoreMenu(event)" aria-haspopup="true">Outils<span id="inv-count-badge" style="color:var(--accent)"></span> ▾</button>
        <div id="fil-more-menu" class="drop-menu" style="display:none">
          <button type="button" class="show-sm" onclick="closeFilMoreMenu();openFilamentForm()">Ajouter une bobine</button>
          <button type="button" class="show-sm" onclick="closeFilMoreMenu();toggleFilAdvanced()">Filtres avancés</button>
          <button type="button" onclick="closeFilMoreMenu();toggleShowArchived()">${showArchived ? 'Masquer les archivées' : 'Voir les archivées'}</button>
+         <button type="button" id="inv-menu-item" onclick="closeFilMoreMenu();openInventory()">Inventaire<span id="inv-count-menu"></span></button>
          <button type="button" onclick="closeFilMoreMenu();openLabelEditor()">Étiquettes</button>
          ${_filView === 'list' ? '<button type="button" onclick="closeFilMoreMenu();openColPicker()">Colonnes du tableau</button>' : ''}
          <hr>
@@ -281,6 +283,7 @@ async function renderFilaments() {
   allFilaments = await API.get('/filaments' + (showArchived ? '?archived=1' : ''));
   window._allFilaments = allFilaments;
   renderFilamentGrid();
+  if (typeof refreshInventoryBadge === 'function') refreshInventoryBadge();
 }
 
 function toggleFilAdvanced() {
@@ -494,7 +497,11 @@ function fmtWeighDate(str) {
   if (!str) return 'Aucune pesée';
   const d = new Date(String(str).replace(' ', 'T'));
   if (isNaN(d)) return 'Aucune pesée';
-  return 'Pesée ' + d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }).replace('/', '.') +
+  // L'année n'est affichée que si ce n'est pas l'année en cours
+  const opts = d.getFullYear() === new Date().getFullYear()
+    ? { day: '2-digit', month: '2-digit' }
+    : { day: '2-digit', month: '2-digit', year: 'numeric' };
+  return 'Pesée ' + d.toLocaleDateString('fr-FR', opts).replace(/\//g, '.') +
     ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 

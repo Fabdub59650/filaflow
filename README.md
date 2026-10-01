@@ -10,6 +10,7 @@ seule gestion des filaments.
 
 - Inventaire des bobines (matière, couleur, marque, bobines partielles, archivage, étiquettes, QR codes)
 - Pesées manuelles et historique par bobine ; base de référence des poids de bobines vides
+- Contrôle d'inventaire (Outils › Inventaire) : bobines pesées il y a longtemps ou aux valeurs incohérentes, à peser ou à confirmer
 - Balance connectée : `POST /api/tigertag/webhook` avec `{ "uid_hex": "...", "weight_gross": 875 }`
 - Lecture, liaison et écriture de puces NFC (format FilaFlow, compatible avec les puces PrintFlow, et format Elegoo)
 - Bandeau d'alerte stock faible, import/export CSV, export PDF

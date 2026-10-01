@@ -57,6 +57,7 @@ app.use('/api', (req, res, next) => {
 // API routes
 app.use('/api/filaments',     require('./routes/filaments'));
 app.use('/api/weighings',     require('./routes/weighings'));
+app.use('/api/inventory',     require('./routes/inventory'));
 app.use('/api/spool-weights', require('./routes/spool-weights'));
 app.use('/api/settings',      require('./routes/settings'));
 app.use('/api/updater',       require('./routes/updater'));
