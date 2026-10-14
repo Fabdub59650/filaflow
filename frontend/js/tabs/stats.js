@@ -5,6 +5,15 @@
 
 let _statsMonths = '6';   // période : 3 | 6 | 12 | 0 (tout)
 
+// Groupes de couleurs dépliés (conservés d'un rafraîchissement à l'autre)
+const _statsOpenMats = new Set();
+function statsToggle(el) {
+  if (el.open) _statsOpenMats.add(el.dataset.mat); else _statsOpenMats.delete(el.dataset.mat);
+}
+function statsToggleAll(open) {
+  document.querySelectorAll('.stats-group').forEach(function(el) { el.open = open; });
+}
+
 const STATS_PERIODS = [
   { v: '3',  label: '3 mois' },
   { v: '6',  label: '6 mois' },
@@ -34,8 +43,8 @@ function statsMetric(label, value, sub) {
     '<div class="metric-value">' + value + '</div>' +
     (sub ? '<div class="metric-sub">' + sub + '</div>' : '') + '</div>';
 }
-function statsTable(head, rows) {
-  return '<div style="overflow-x:auto"><table><thead><tr>' + head.map(function(h) {
+function statsTable(head, rows, cls) {
+  return '<div' + (cls ? ' class="' + cls + '"' : ' style="overflow-x:auto"') + '><table><thead><tr>' + head.map(function(h) {
     return '<th' + (h.right ? ' style="text-align:right"' : '') + '>' + h.t + '</th>';
   }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
@@ -100,22 +109,30 @@ async function renderStats(months) {
       })) +
   '</div>';
 
-  // ── Stock par couleur (regroupé par matière) ───────────
-  let lastMat = null;
-  const colorRows = [];
-  st.by_color.forEach(function(c) {
-    if (c.material !== lastMat) {
-      lastMat = c.material;
-      colorRows.push('<tr><td colspan="4" style="padding-top:12px;font-weight:500;color:var(--text2)">' + escHtml(c.material) + '</td></tr>');
-    }
-    colorRows.push('<tr><td>' + statsDot(c.color_hex) + escHtml(c.color_name) + '</td>' +
-      '<td' + STATS_R + '>' + c.count + '</td>' +
-      '<td' + STATS_R + '>' + statsG(c.grams) + '</td>' +
-      '<td' + STATS_R + '>' + statsEur(c.value) + '</td></tr>');
-  });
-  const colorCard = '<div class="card"><div class="card-header"><span class="card-title">Stock par couleur</span></div>' +
-    statsTable([{ t: 'Couleur' }, { t: 'Bobines', right: 1 }, { t: 'Restant', right: 1 }, { t: 'Valeur', right: 1 }], colorRows) +
-  '</div>';
+  // ── Stock par couleur : groupes repliables par matière ─
+  const colorsByMat = {};
+  st.by_color.forEach(function(c) { (colorsByMat[c.material] = colorsByMat[c.material] || []).push(c); });
+  const colorGroups = st.by_material.map(function(m) {
+    const list = colorsByMat[m.material] || [];
+    const rows = list.map(function(c) {
+      return '<tr><td>' + statsDot(c.color_hex) + escHtml(c.color_name) + '</td>' +
+        '<td' + STATS_R + '>' + c.count + '</td>' +
+        '<td' + STATS_R + '>' + statsG(c.grams) + '</td>' +
+        '<td' + STATS_R + '>' + statsEur(c.value) + '</td></tr>';
+    });
+    return '<details class="stats-group" data-mat="' + escHtml(m.material) + '"' +
+        (_statsOpenMats.has(m.material) ? ' open' : '') + ' ontoggle="statsToggle(this)">' +
+      '<summary><span class="stats-group-name">' + escHtml(m.material) + '</span>' +
+        '<span class="stats-group-info">' + list.length + ' couleur' + (list.length > 1 ? 's' : '') +
+        ' · ' + statsG(m.grams) + ' · ' + statsEur(m.value) + '</span></summary>' +
+      statsTable([{ t: 'Couleur' }, { t: 'Bobines', right: 1 }, { t: 'Restant', right: 1 }, { t: 'Valeur', right: 1 }], rows) +
+    '</details>';
+  }).join('');
+  const colorCard = '<div class="card"><div class="card-header"><span class="card-title">Stock par couleur</span>' +
+    '<span style="display:flex;gap:6px">' +
+      '<button class="btn btn-sm" onclick="statsToggleAll(true)">Tout déplier</button>' +
+      '<button class="btn btn-sm" onclick="statsToggleAll(false)">Tout replier</button></span></div>' +
+    '<div class="stats-scroll">' + colorGroups + '</div></div>';
 
   // ── Consommation estimée ───────────────────────────────
   let consBody;
@@ -167,7 +184,7 @@ async function renderStats(months) {
   } else {
     dormBody =
       '<div class="metric-sub" style="margin:-6px 0 10px">' + dm.count + ' bobine' + (dm.count > 1 ? 's' : '') +
-        ' · ' + statsEur(dm.value) + ' immobilisés' + (dm.count > dm.items.length ? ' · les ' + dm.items.length + ' plus chères sont listées' : '') + '</div>' +
+        ' · ' + statsEur(dm.value) + ' immobilisés' + '</div>' +
       statsTable(
         [{ t: 'Bobine' }, { t: 'Couleur' }, { t: 'Restant', right: 1 }, { t: 'Valeur', right: 1 }, { t: 'Dernière baisse', right: 1 }],
         dm.items.map(function(b) {
@@ -178,12 +195,15 @@ async function renderStats(months) {
             '<td' + STATS_R + '>' + statsEur(b.value) + '</td>' +
             '<td style="text-align:right;white-space:nowrap;color:var(--text3)">' +
               (b.last_use_at ? fmtDate(b.last_use_at) : 'aucune mesurée') + '</td></tr>';
-        }));
+        }), 'stats-scroll');
   }
   const dormCard = '<div class="card"><div class="card-header"><span class="card-title">Bobines dormantes</span></div>' + dormBody +
     '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Bobines avec du filament restant et sans baisse de poids mesurée ' +
       statsPeriodLabel(months_) + '. Une bobine peu pesée peut apparaître ici alors qu’elle sert : une pesée récente la fait sortir de la liste.</div></div>';
 
-  content.innerHTML = metrics + '<div class="stats-grid">' + matCard + colorCard + '</div>' +
-    consCard + '<div class="stats-grid">' + freshCard + dormCard + '</div>';
+  content.innerHTML = metrics +
+    '<div class="stats-cols">' +
+      '<div class="stats-col">' + matCard + consCard + freshCard + '</div>' +
+      '<div class="stats-col">' + colorCard + dormCard + '</div>' +
+    '</div>';
 }

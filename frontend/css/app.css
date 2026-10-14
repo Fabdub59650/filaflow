@@ -457,6 +457,22 @@ body:not([data-tab="filaments"]) .mobile-actions { display: none !important; }
 .tw-icon { font-size: 22px; width: 34px; text-align: center; flex-shrink: 0; }
 .tw-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
-/* Onglet Stats : deux colonnes sur grand écran, une seule en dessous de 1024 px */
-.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 1024px) { .stats-grid { grid-template-columns: 1fr; } }
+/* Onglet Stats : deux colonnes indépendantes sur grand écran, une seule en dessous de 1024 px
+   (ordre : matière, consommation, fraîcheur, puis couleur, dormantes) */
+.stats-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.stats-col { display: flex; flex-direction: column; min-width: 0; }
+@media (max-width: 1024px) { .stats-cols { grid-template-columns: minmax(0, 1fr); } }
+/* Listes longues : hauteur limitée, défilement interne, en-tête de colonnes fixe */
+.stats-scroll { max-height: 460px; overflow: auto; }
+.stats-scroll table { display: table; }
+.stats-scroll > table thead th { position: sticky; top: 0; z-index: 1; background: var(--bg2); }
+/* Groupes repliables (stock par couleur) */
+.stats-group { border-bottom: 0.5px solid var(--border); }
+.stats-group:last-child { border-bottom: none; }
+.stats-group summary { display: flex; align-items: center; gap: 12px; padding: 10px 4px; cursor: pointer; list-style: none; }
+.stats-group summary::-webkit-details-marker { display: none; }
+.stats-group summary::before { content: '▸'; color: var(--text3); }
+.stats-group[open] summary::before { content: '▾'; }
+.stats-group-name { flex: 1; font-weight: 500; }
+.stats-group-info { color: var(--text2); font-size: 12px; white-space: nowrap; }
+.stats-group table { margin-bottom: 8px; }

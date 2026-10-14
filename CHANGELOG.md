@@ -1,5 +1,15 @@
 # Changelog — FilaFlow
 
+## 1.11.1 — octobre 2026 — onglet Stats : mise en page en deux colonnes
+
+- Colonne de gauche : stock par matière, consommation estimée, fraîcheur des pesées (cartes à taille fixe) ;
+  colonne de droite : stock par couleur et bobines dormantes (les deux listes qui peuvent grandir)
+- Stock par couleur : groupes repliables par matière (total visible, un clic déplie les couleurs),
+  boutons « Tout déplier / Tout replier », état conservé à l'actualisation
+- Bobines dormantes : toutes les bobines sont listées (plus de limite à 20), dans une liste à hauteur limitée
+  avec défilement et en-tête de colonnes fixe
+- Une seule colonne sous 1024 px, dans l'ordre : matière, consommation, fraîcheur, couleur, dormantes
+
 ## 1.11.0 — octobre 2026 — onglet Stats
 
 - Nouvel onglet **Stats** (menu latéral, raccourci clavier `s`) : stock par matière et par couleur

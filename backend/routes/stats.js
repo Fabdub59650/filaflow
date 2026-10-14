@@ -195,7 +195,7 @@ function computeStats(filaments, weighings, opts) {
       by_material: outMap(consByMat, k => ({ material: k })),
       by_color: outMap(consByColor, k => { const [material, color_name] = k.split('|'); return { material, color_name }; }),
     },
-    dormant: { count: dormant.length, value: round1(dormantValue), items: dormant.slice(0, 20) },
+    dormant: { count: dormant.length, value: round1(dormantValue), items: dormant },
   };
 }
 
