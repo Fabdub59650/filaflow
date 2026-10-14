@@ -1,5 +1,11 @@
 # Changelog — FilaFlow
 
+## 1.11.2 — octobre 2026 — onglet Stats : bobines neuves exclues des dormantes
+
+- Une bobine neuve (poids restant = poids total, à la tolérance de balance de l'inventaire près, 10 g par défaut)
+  n'apparaît plus dans les bobines dormantes : seules les bobines entamées sans baisse de poids mesurée y figurent
+- Les bobines neuves restent comptées dans le stock et dans les valeurs par matière et par couleur
+
 ## 1.11.1 — octobre 2026 — onglet Stats : mise en page en deux colonnes
 
 - Colonne de gauche : stock par matière, consommation estimée, fraîcheur des pesées (cartes à taille fixe) ;

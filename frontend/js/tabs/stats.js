@@ -180,7 +180,7 @@ async function renderStats(months) {
   // ── Bobines dormantes ──────────────────────────────────
   let dormBody;
   if (!dm.count) {
-    dormBody = '<div style="color:var(--text3);font-size:13px">Aucune : toutes les bobines entamées ou en stock ont une baisse de poids mesurée ' + statsPeriodLabel(months_) + '.</div>';
+    dormBody = '<div style="color:var(--text3);font-size:13px">Aucune : toutes les bobines entamées ont une baisse de poids mesurée ' + statsPeriodLabel(months_) + '.</div>';
   } else {
     dormBody =
       '<div class="metric-sub" style="margin:-6px 0 10px">' + dm.count + ' bobine' + (dm.count > 1 ? 's' : '') +
@@ -198,7 +198,7 @@ async function renderStats(months) {
         }), 'stats-scroll');
   }
   const dormCard = '<div class="card"><div class="card-header"><span class="card-title">Bobines dormantes</span></div>' + dormBody +
-    '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Bobines avec du filament restant et sans baisse de poids mesurée ' +
+    '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Bobines entamées (hors bobines neuves) sans baisse de poids mesurée ' +
       statsPeriodLabel(months_) + '. Une bobine peu pesée peut apparaître ici alors qu’elle sert : une pesée récente la fait sortir de la liste.</div></div>';
 
   content.innerHTML = metrics +

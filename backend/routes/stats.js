@@ -11,8 +11,10 @@
  *      · une pesée où le poids remonte (correction, bobine remplacée) n'est pas de la consommation : ignorée.
  *    La date d'une consommation est celle de la pesée : c'est une estimation, d'autant moins précise
  *    que les pesées sont espacées.
- *  - Bobines dormantes : bobines actives avec du filament restant et aucune baisse de poids mesurée
- *    sur la période choisie (une baisse inférieure à la tolérance de l'inventaire est du bruit de balance).
+ *  - Bobines dormantes : bobines actives entamées (les bobines neuves sont exclues) avec du filament
+ *    restant et aucune baisse de poids mesurée sur la période choisie. La tolérance de l'inventaire
+ *    sert de marge de balance : une baisse inférieure n'est pas une utilisation, et une bobine à
+ *    moins de cette marge sous son poids total est considérée comme neuve.
  */
 const router = require('express').Router();
 const db = require('../db');
@@ -152,6 +154,9 @@ function computeStats(filaments, weighings, opts) {
   for (const f of active) {
     const remaining = Math.max(0, num(f.weight_remaining) || 0);
     if (remaining <= 0) continue;
+    // Bobine neuve (poids restant = poids total, à la tolérance de la balance près) : pas dormante
+    const total = num(f.weight_total);
+    if (total && remaining >= total - tolerance) continue;
     const lu = lastUseById.get(f.id) || null;
     if (lu && (!sinceIso || lu >= sinceIso)) continue;
     dormant.push({
