@@ -1,5 +1,10 @@
 # Changelog — FilaFlow
 
+## 1.10.4 — octobre 2026 — historique des pesées : carte « Consommé total » retirée
+
+- La carte « Consommé total » restait à 0 (calcul à l'envers, sans objet depuis la suppression du suivi
+  des impressions) : elle est retirée. La colonne « Écart » du tableau et le graphique donnent la même information
+
 ## 1.10.3 — octobre 2026 — lien bobine principale ↔ partielles (vue Grille)
 
 - Bobine partielle : pastille « ↳ de N° 12 » (ou le nom si la principale n'a pas de numéro) ; un clic fait

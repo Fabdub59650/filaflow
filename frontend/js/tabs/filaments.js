@@ -1369,14 +1369,6 @@ async function openWeighingHistory(filamentId) {
     const weights  = chronoHistory.map(function(w) { return parseFloat(w.net_weight).toFixed(0); });
     const maxWeight = fil ? parseFloat(fil.weight_total) : Math.max(...weights.map(Number));
 
-    const totalConsumed = history.reduce(function(sum, w, i) {
-      if (i < history.length - 1) {
-        const diff = w.previous_weight - history[i+1].previous_weight;
-        return sum + Math.max(0, diff);
-      }
-      return sum;
-    }, 0);
-
     openModal(
       // Graphique
       '<div style="position:relative;height:200px;margin-bottom:16px">' +
@@ -1392,10 +1384,6 @@ async function openWeighingHistory(filamentId) {
           '<div class="metric-label">Stock actuel</div>' +
           '<div class="metric-value" style="font-size:16px">' + parseFloat(history[0].net_weight).toFixed(0) + 'g</div>' +
           '<div class="metric-sub">' + fmtDateTime(history[0].created_at) + '</div>' +
-        '</div>' +
-        '<div class="metric-card" style="flex:1">' +
-          '<div class="metric-label">Consommé total</div>' +
-          '<div class="metric-value" style="font-size:16px">' + totalConsumed.toFixed(0) + 'g</div>' +
         '</div>' +
       '</div>' +
       // Tableau
