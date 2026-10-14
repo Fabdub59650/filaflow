@@ -517,12 +517,35 @@ function spoolCardHtml(f) {
     ? '<span class="spool-num" title="N° de bobine : ' + escHtml(f.spool_number) + '">N° ' + escHtml(f.spool_number) + '</span>'
     : '<span class="spool-num empty" title="Aucun N° de bobine">N° —</span>';
   const sub   = [f.brand, f.color_name].filter(Boolean).map(escHtml).join(' · ');
+  // Lien bobine principale ↔ partielles
+  const parent   = f.parent_filament_id
+    ? allFilaments.find(function(x) { return String(x.id) === String(f.parent_filament_id); }) : null;
+  const kids     = f.parent_filament_id ? []
+    : allFilaments.filter(function(c) { return String(c.parent_filament_id) === String(f.id) && !c.archived; });
+  const inFamily = !!f.parent_filament_id || kids.length > 0;
+  const famId    = f.parent_filament_id || f.id;
+  const famColor = (parent && parent.color_hex) || f.color_hex || '#888888';
+  let famTag = '', famTotal = '';
+  if (f.parent_filament_id) {
+    famTag = parent
+      ? '<button type="button" class="tag tag-link" title="Voir la bobine principale" onclick="event.stopPropagation();flashFamilyCards([' + parent.id + '])">↳ de ' +
+          escHtml(parent.spool_number ? 'N° ' + parent.spool_number : parent.name) + '</button>'
+      : '<span class="tag" title="La bobine principale est archivée ou n\'est pas affichée">↳ principale archivée</span>';
+  } else if (kids.length) {
+    const ids = kids.map(function(c) { return c.id; }).join(',');
+    const sum = Math.round(rem + kids.reduce(function(t, c) { return t + Math.max(0, parseFloat(c.weight_remaining) || 0); }, 0));
+    famTag = '<button type="button" class="tag tag-link" title="Voir les bobines partielles" onclick="event.stopPropagation();flashFamilyCards([' + ids + '])">' +
+      kids.length + ' partielle' + (kids.length > 1 ? 's' : '') + '</button>';
+    famTotal = '<div class="spool-family-total" title="Reste cumulé de la bobine principale et de ses partielles">Σ ' + sum + ' g restants avec les partielles</div>';
+  }
   const tags  =
     (low ? '<span class="tag tag-low">Stock bas</span>' : '') +
     (f.parent_filament_id ? '<span class="tag">Partielle' + (f.spool_label ? ' · ' + escHtml(f.spool_label) : '') + '</span>' : '') +
+    famTag +
     (f.archived ? '<span class="tag">Archivée</span>' : '') +
     (f.nfc_uid ? '<span class="tag" title="Puce NFC : ' + escHtml(f.nfc_uid) + '">NFC</span>' : '');
   return '<div data-id="' + f.id + '" class="spool-card' + (low ? ' low' : '') + (f.archived ? ' archived' : '') + (f.parent_filament_id ? ' partial' : '') + '"' +
+      (inFamily ? ' data-family="' + famId + '" style="--fam:' + escHtml(famColor) + '"' : '') +
       ' tabindex="0" role="button" aria-label="Ouvrir la fiche ' + escHtml(f.name) + '"' +
       ' onclick="openFilamentForm(' + f.id + ')" onkeydown="if(event.key===\'Enter\')openFilamentForm(' + f.id + ')">' +
     '<div class="spool-top">' + num + '<span class="spool-code">' + code + '</span></div>' +
@@ -540,6 +563,7 @@ function spoolCardHtml(f) {
     '</div>' +
     '<div class="spool-weight"><div><span class="w">' + Math.round(rem) + '</span> <span class="wt">/ ' + Math.round(total) + ' g</span></div>' +
       (len ? '<span class="len">≈ ' + len + '</span>' : '') + '</div>' +
+    famTotal +
     '<div class="spool-foot"><span class="spool-last" title="' + (f.last_weighed_at ? 'Dernière pesée : ' + fmtDateTime(f.last_weighed_at) : 'Aucune pesée enregistrée') + '">' + fmtWeighDate(f.last_weighed_at) + '</span>' +
       '<span class="spool-actions" onclick="event.stopPropagation()">' +
         '<button type="button" class="btn btn-sm" onclick="openWeighingModal(' + f.id + ')">Pesée</button>' +
@@ -548,6 +572,40 @@ function spoolCardHtml(f) {
       '</span></div>' +
   '</div>';
 }
+
+// Fait défiler jusqu'aux cartes indiquées et les fait clignoter (liens principale ↔ partielles)
+function flashFamilyCards(ids) {
+  let first = null;
+  (ids || []).forEach(function(id) {
+    const c = document.querySelector('.spool-card[data-id="' + id + '"]');
+    if (!c) return;
+    if (!first) first = c;
+    c.classList.remove('flash');
+    void c.offsetWidth;
+    c.classList.add('flash');
+    setTimeout(function() { c.classList.remove('flash'); }, 2200);
+  });
+  if (first && first.scrollIntoView) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Survol d'une carte : met en évidence toute sa famille (principale + partielles)
+(function() {
+  if (window._famHoverBound) return;
+  window._famHoverBound = true;
+  function clearFam() {
+    document.querySelectorAll('.spool-card.fam-hl').forEach(function(c) { c.classList.remove('fam-hl'); });
+  }
+  document.addEventListener('mouseover', function(e) {
+    const card = e.target.closest && e.target.closest('.spool-card[data-family]');
+    clearFam();
+    if (!card) return;
+    document.querySelectorAll('.spool-card[data-family="' + card.getAttribute('data-family') + '"]')
+      .forEach(function(c) { c.classList.add('fam-hl'); });
+  });
+  document.addEventListener('mouseout', function(e) {
+    if (!e.relatedTarget) clearFam();
+  });
+})();
 
 function renderFilamentGrid() {
   const content = document.getElementById('content');

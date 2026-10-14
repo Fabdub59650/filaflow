@@ -365,6 +365,11 @@ input[type=checkbox], input[type=radio] { min-height: 0; width: auto; accent-col
 .spool-num.empty { font-weight: 400; color: var(--text3); }
 .spool-code { flex: 1; min-width: 0; text-align: right; }
 .spool-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag-link { appearance: none; background: transparent; cursor: pointer; }
+.tag-link:hover, .tag-link:focus-visible { border-color: var(--accent); color: var(--text); outline: none; }
+.spool-card[data-family]::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 3px 3px 0; background: var(--fam, var(--text3)); }
+.spool-card.fam-hl { border-color: var(--text3); box-shadow: 0 0 0 2px var(--accent-bg); }
+.spool-family-total { font-family: var(--font-mono); font-size: 12px; color: var(--text2); margin-top: -6px; }
 .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; padding: 2px 6px; border: 1px solid var(--border2); color: var(--text2); border-radius: 2px; text-transform: uppercase; white-space: nowrap; }
 .tag-low { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .spool-mid { display: flex; align-items: center; gap: 14px; }
@@ -393,7 +398,7 @@ input[type=checkbox], input[type=radio] { min-height: 0; width: auto; accent-col
   .fil-head h1 { font-size: 34px; }
   .spool-grid { grid-template-columns: 1fr; gap: 10px; }
   .spool-card { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px; gap: 10px 12px; }
-  .spool-card .spool-top, .spool-card .spool-tags, .spool-card .spool-foot { width: 100%; }
+  .spool-card .spool-top, .spool-card .spool-tags, .spool-card .spool-family-total, .spool-card .spool-foot { width: 100%; }
   .spool-card .spool-mid { flex: 1; min-width: 0; }
   .spool-card .spool-weight { flex-direction: column; align-items: flex-end; gap: 2px; }
   .spool-card .spool-weight .w { font-size: 22px; }

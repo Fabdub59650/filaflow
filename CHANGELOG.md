@@ -1,5 +1,14 @@
 # Changelog — FilaFlow
 
+## 1.10.3 — octobre 2026 — lien bobine principale ↔ partielles (vue Grille)
+
+- Bobine partielle : pastille « ↳ de N° 12 » (ou le nom si la principale n'a pas de numéro) ; un clic fait
+  défiler jusqu'à la principale et la fait clignoter. Si la principale est archivée : « ↳ principale archivée »
+- Bobine principale : pastille « 2 partielles » (clic = les partielles clignotent) et ligne
+  « Σ 980 g restants avec les partielles » (principale + partielles non archivées, comme en vue Liste)
+- Survol d'une carte : toute la famille est mise en évidence ; filet de couleur du filament sur le bord gauche
+  des cartes d'une même famille
+
 ## 1.10.2 — octobre 2026 — N° de bobine toujours visible
 
 - Vue Grille des filaments : le N° de bobine est affiché dans un badge dédié (fond neutre, police plus grande),
