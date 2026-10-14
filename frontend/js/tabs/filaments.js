@@ -511,7 +511,11 @@ function spoolCardHtml(f) {
   const dash  = (p / 100 * C).toFixed(1) + ' ' + C.toFixed(1);
   const color = f.color_hex || '#888888';
   const len   = calcLength(rem, f.diameter, f.material);
-  const code  = escHtml(f.material) + ' · Ø' + (parseFloat(f.diameter) || 1.75) + (f.spool_number ? ' · #' + escHtml(f.spool_number) : '');
+  const code  = escHtml(f.material) + ' · Ø' + (parseFloat(f.diameter) || 1.75);
+  // N° de bobine : badge dédié, jamais tronqué (même sur partielle / stock bas)
+  const num   = f.spool_number
+    ? '<span class="spool-num" title="N° de bobine : ' + escHtml(f.spool_number) + '">N° ' + escHtml(f.spool_number) + '</span>'
+    : '<span class="spool-num empty" title="Aucun N° de bobine">N° —</span>';
   const sub   = [f.brand, f.color_name].filter(Boolean).map(escHtml).join(' · ');
   const tags  =
     (low ? '<span class="tag tag-low">Stock bas</span>' : '') +
@@ -521,7 +525,8 @@ function spoolCardHtml(f) {
   return '<div data-id="' + f.id + '" class="spool-card' + (low ? ' low' : '') + (f.archived ? ' archived' : '') + (f.parent_filament_id ? ' partial' : '') + '"' +
       ' tabindex="0" role="button" aria-label="Ouvrir la fiche ' + escHtml(f.name) + '"' +
       ' onclick="openFilamentForm(' + f.id + ')" onkeydown="if(event.key===\'Enter\')openFilamentForm(' + f.id + ')">' +
-    '<div class="spool-top"><span class="spool-code">' + code + '</span><span class="spool-tags">' + tags + '</span></div>' +
+    '<div class="spool-top">' + num + '<span class="spool-code">' + code + '</span></div>' +
+    (tags ? '<div class="spool-tags">' + tags + '</div>' : '') +
     '<div class="spool-mid">' +
       '<svg class="spool-ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
         '<circle cx="38" cy="38" r="33" fill="none" stroke="var(--ring-track)" stroke-width="8"></circle>' +

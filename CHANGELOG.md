@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.10.2 — octobre 2026 — N° de bobine toujours visible
+
+- Vue Grille des filaments : le N° de bobine est affiché dans un badge dédié (fond neutre, police plus grande),
+  en haut à gauche de la carte, et n'est plus tronqué sur les bobines partielles ou en stock bas
+- Les étiquettes (Stock bas, Partielle, NFC) passent sur une ligne à part, qui revient à la ligne si besoin
+- Bobine sans numéro : « N° — » discret, pour garder les cartes alignées
+
 ## 1.10.1 — octobre 2026 — année dans les dates
 
 - Toutes les dates avec heure s'affichent avec l'année, au format 01.10.2026 19:21 : cartes,
