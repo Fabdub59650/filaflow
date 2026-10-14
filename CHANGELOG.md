@@ -1,5 +1,19 @@
 # Changelog — FilaFlow
 
+## 1.11.0 — octobre 2026 — onglet Stats
+
+- Nouvel onglet **Stats** (menu latéral, raccourci clavier `s`) : stock par matière et par couleur
+  (bobines, entamées, poids restant, valeur), consommation estimée, fraîcheur des pesées, bobines dormantes
+- Consommation estimée = baisses de poids entre deux pesées sur la période choisie (3, 6, 12 mois ou tout),
+  avec coût estimé d'après le prix de chaque bobine. La première pesée de chaque bobine (écart avec le poids
+  théorique de départ) et les pesées où le poids remonte sont ignorées ; la date d'une consommation est celle
+  de la pesée, donc l'estimation est d'autant moins précise que les pesées sont espacées
+- Bobines dormantes : bobines avec du filament restant et sans baisse de poids mesurée sur la période
+  (une baisse inférieure à la tolérance de l'inventaire est considérée comme du bruit de balance)
+- Fraîcheur : répartition des bobines actives selon l'âge de leur dernière pesée ou validation d'inventaire
+  (seuil = délai de l'inventaire)
+- Aucune modification du schéma de la base ; nouvelle route `GET /api/stats?months=0|3|6|12`
+
 ## 1.10.4 — octobre 2026 — historique des pesées : carte « Consommé total » retirée
 
 - La carte « Consommé total » restait à 0 (calcul à l'envers, sans objet depuis la suppression du suivi

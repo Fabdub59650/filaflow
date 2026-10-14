@@ -456,3 +456,7 @@ body:not([data-tab="filaments"]) .mobile-actions { display: none !important; }
 .toast-action { cursor: default; max-width: 380px; }
 .tw-icon { font-size: 22px; width: 34px; text-align: center; flex-shrink: 0; }
 .tw-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+/* Onglet Stats : deux colonnes sur grand écran, une seule en dessous de 1024 px */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1024px) { .stats-grid { grid-template-columns: 1fr; } }

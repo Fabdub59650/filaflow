@@ -1,5 +1,5 @@
 // ── FilaFlow Service Worker ──────────────────────────────
-const CACHE_NAME    = 'filaflow-v1.10.4';   // cache hors-ligne uniquement
+const CACHE_NAME    = 'filaflow-v1.11.0';   // cache hors-ligne uniquement
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   '/js/tabs/spoolweights.js',
   '/js/tabs/settings.js',
   '/js/tabs/history.js',
+  '/js/tabs/stats.js',
   '/fonts/barlow-condensed-latin-600-normal.woff2',
   '/fonts/barlow-condensed-latin-700-normal.woff2',
   '/fonts/ibm-plex-mono-latin-400-normal.woff2',

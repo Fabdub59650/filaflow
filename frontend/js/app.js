@@ -3,6 +3,7 @@ const TAB_RENDERERS = {
   spoolweights: renderSpoolweights,
   settings:     renderSettings,
   history:      renderHistory,
+  stats:        renderStats,
 };
 
 let currentTab = 'filaments';
@@ -213,6 +214,7 @@ updateHamburger();
 // ── Raccourcis clavier ─────────────────────────────────────────────────────
 const KB_SHORTCUTS = [
   { key: 'f', tab: 'filaments',    label: 'Filaments' },
+  { key: 's', tab: 'stats',        label: 'Stats' },
   { key: 'w', tab: 'spoolweights', label: 'Bobines réf.' },
   { key: 'h', tab: 'history',      label: 'Historique' },
   { key: ',', tab: 'settings',     label: 'Paramètres' },
