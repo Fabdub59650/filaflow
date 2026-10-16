@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.11.3 — octobre 2026 — thème commun avec PrepFlow
+
+- Nouveau fichier `frontend/css/theme.css` (polices, palette graphite / béton, espacements typographiques),
+  identique dans les dépôts FilaFlow et PrepFlow ; il remplace le bloc de polices et de variables qui
+  figurait en tête de `app.css` (aucun changement d'affichage dans FilaFlow)
+- L'accent orange, les rayons et les largeurs de menu restent dans `app.css`
+- Cache hors-ligne : `theme.css` ajouté à la liste précachée
+
 ## 1.11.2 — octobre 2026 — onglet Stats : bobines neuves exclues des dormantes
 
 - Une bobine neuve (poids restant = poids total, à la tolérance de balance de l'inventaire près, 10 g par défaut)

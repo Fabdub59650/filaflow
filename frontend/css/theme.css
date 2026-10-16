@@ -1,0 +1,57 @@
+/* ══════════════════════════════════════════════════════════════
+   Thème commun FilaFlow / PrepFlow — direction « Atelier »
+   ──────────────────────────────────────────────────────────────
+   Ce fichier est IDENTIQUE dans les deux dépôts (frontend/css/theme.css).
+   Le modifier dans un dépôt = le recopier à l'identique dans l'autre.
+
+   Contient : polices, palette neutre graphite / béton, rayons, rythme
+   typographique. Ne contient PAS : l'accent (--accent, --accent-bg,
+   --on-accent), --warning et --info, propres à chaque app
+   (orange pour FilaFlow, bleu « plan » pour PrepFlow).
+
+   Variante claire : data-color-scheme="light" sur <html>.
+   Les URL des polices sont relatives à ce fichier (../fonts/).
+   ══════════════════════════════════════════════════════════════ */
+@font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-display: swap; src: url('../fonts/barlow-condensed-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 700; font-display: swap; src: url('../fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 400; font-display: swap; src: url('../fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 500; font-display: swap; src: url('../fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 400; font-display: swap; src: url('../fonts/ibm-plex-sans-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 500; font-display: swap; src: url('../fonts/ibm-plex-sans-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 600; font-display: swap; src: url('../fonts/ibm-plex-sans-latin-600-normal.woff2') format('woff2'); }
+
+:root {
+  /* Polices : titres et boutons / libellés et chiffres / texte courant */
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Rythme typographique : espacement des lettres par rôle */
+  --tracking-title: 0.04em;   /* titres de page */
+  --tracking-heading: 0.06em; /* titres de carte, de panneau, logo */
+  --tracking-action: 0.08em;  /* boutons, menus */
+  --tracking-label: 0.1em;    /* libellés, en-têtes de colonnes, étiquettes */
+
+  /* Graphite (défaut) */
+  --bg: #141517;  --bg2: #1B1C1F;  --bg3: #232528;  --bg-deep: #0F1012;
+  --border: #2A2C30;  --border2: #3A3C41;
+  --text: #E8E6E1;  --text2: #A9A69F;  --text3: #8E8B84;
+  --success: #4CC38A; --success-bg: #12301F;
+  --danger: #FF6B5E;  --danger-bg: #3A1614;
+  --radius: 4px;  --radius-lg: 6px;
+
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color-scheme: dark;
+}
+
+/* Variante claire : « béton » */
+:root[data-color-scheme="light"] {
+  --bg: #ECEAE5;  --bg2: #F7F6F2;  --bg3: #E2DFD8;  --bg-deep: #DEDBD3;
+  --border: #D3CFC6;  --border2: #BDB8AD;
+  --text: #1A1B1D;  --text2: #55534E;  --text3: #6E6B65;
+  --success: #1F7A4D; --success-bg: #DDF0E5;
+  --danger: #B3261E;  --danger-bg: #F9DEDC;
+  color-scheme: light;
+}
