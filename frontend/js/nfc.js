@@ -196,7 +196,7 @@ function _showQuickScanToast(filament) {
     key: 'known-' + filament.id,
     label: 'Lecteur NFC',
     swatch: filament.color_hex || '#888',
-    title: filament.name,
+    title: escHtml(filament.name) + (filament.spool_number ? ' (' + escHtml(filament.spool_number) + ')' : ''),
     sub: filament.material + ' · ' + Math.round(filament.weight_remaining) + ' g restants',
     timeout: 20000,
     actions: [

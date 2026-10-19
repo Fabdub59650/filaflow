@@ -2074,7 +2074,7 @@ function showWeighingToast(d) {
     '<span class="tw-swatch" style="background:' + escHtml(d.color_hex || '#888') + '"></span>' +
     '<span class="tw-body">' +
       '<span class="tw-label">Balance</span>' +
-      '<span class="tw-name">' + escHtml(d.name) + '</span>' +
+      '<span class="tw-name">' + escHtml(d.name) + (d.spool_number ? ' (' + escHtml(d.spool_number) + ')' : '') + '</span>' +
       '<span class="tw-weight">' + fmtGrams(d.net) + (pct !== null ? ' · ' + pct + ' %' : '') + '</span>' +
       '<span class="tw-delta' + (delta > 0 ? ' up' : '') + '">' + deltaTxt + '</span>' +
     '</span>';

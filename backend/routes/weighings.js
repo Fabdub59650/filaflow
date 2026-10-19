@@ -54,7 +54,7 @@ router.post('/', async (req, res) => {
     try {
       require('../nfc').broadcast('weighing', {
         source: 'manual', weighing_id: result.insertId,
-        filament_id: updated.id, name: updated.name, color_hex: updated.color_hex,
+        filament_id: updated.id, name: updated.name, spool_number: updated.spool_number || null, color_hex: updated.color_hex,
         net: netWeight, previous: prevWeight, total: parseFloat(updated.weight_total) || 0,
         at: new Date().toISOString(),
       });

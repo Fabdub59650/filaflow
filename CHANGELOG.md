@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.11.4 — octobre 2026 — n° de bobine dans les vignettes de lecture
+
+- La vignette qui apparaît en bas de page à la lecture d'une puce NFC affiche le n° de bobine entre
+  parenthèses après le nom, par exemple « Black (B-065) » ; même chose pour la vignette de pesée
+  automatique par la balance
+- Le nom de la bobine est désormais échappé dans la vignette NFC (un nom contenant « < » ou « & » s'affiche correctement)
+
 ## 1.11.3 — octobre 2026 — thème commun avec PrepFlow
 
 - Nouveau fichier `frontend/css/theme.css` (polices, palette graphite / béton, espacements typographiques),

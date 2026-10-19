@@ -101,7 +101,7 @@ router.post('/webhook', async (req, res) => {
 
     notify('weighing', {
       source: 'scale', weighing_id: result.insertId,
-      filament_id: filament.id, name: filament.name, color_hex: filament.color_hex,
+      filament_id: filament.id, name: filament.name, spool_number: filament.spool_number || null, color_hex: filament.color_hex,
       net: netWeight, previous: prevWeight, total: parseFloat(filament.weight_total) || 0,
       at: new Date().toISOString(),
     });
