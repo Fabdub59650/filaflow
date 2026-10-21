@@ -1,5 +1,9 @@
 # Changelog — FilaFlow
 
+## 1.13.1 — octobre 2026 — mise à niveau de la base au démarrage
+
+- Correctif : si `sql/schema.sql` n'est pas rejoué lors d'une mise à jour (`scripts/patch.sh` non lancé), la colonne `filament_weighings.flag` manquait et les Stats, l'Inventaire et les pesées échouaient. Le service applique désormais au démarrage les ajouts de colonnes idempotents (nouveau `backend/migrations.js`)
+
 ## 1.13.0 — octobre 2026 — pesées suspectes et archivage de fin de bobine
 
 - Contrôle des pesées à l'enregistrement, désormais fait par le serveur avec les mêmes règles pour tous les points d'entrée (nouveau `backend/weighing-rules.js`) : poids qui remonte, plus que plein, brut sous la tare, et baisse brutale (plus de la moitié du poids d'origine depuis la pesée précédente)

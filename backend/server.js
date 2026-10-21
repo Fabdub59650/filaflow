@@ -93,6 +93,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
+// Mises à niveau idempotentes de la base (colonnes ajoutées par les versions récentes)
+require('./migrations').run().catch(() => {});
+
 app.listen(PORT, () => {
   console.log(`FilaFlow backend running on port ${PORT}`);
   // Persister la version en base pour le système de mise à jour automatique
