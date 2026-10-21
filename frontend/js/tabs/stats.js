@@ -352,9 +352,9 @@ function statsShow() {
   if (_statsTab === 'stock')      body = '<div class="stats-cols"><div class="stats-col">' + c.mat + '</div><div class="stats-col">' + c.color + '</div></div>';
   else if (_statsTab === 'conso') body = c.cons + c.auto;
   else if (_statsTab === 'suivi') body = '<div class="stats-cols"><div class="stats-col">' + c.fresh + '</div><div class="stats-col">' + c.dorm + '</div></div>';
-  else                            body = c.metrics + c.watch + c.month;
+  else                            body = c.watch + c.month;
 
-  content.innerHTML = bar + body;
+  content.innerHTML = c.metrics + bar + body;
 
   // La période ne joue pas sur l'onglet Stock
   const sel = document.getElementById('stats-period');

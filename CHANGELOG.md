@@ -1,5 +1,9 @@
 # Changelog — FilaFlow
 
+## 1.12.2 — octobre 2026 — indicateurs Stats au-dessus des sous-onglets
+
+- Les quatre indicateurs (bobines actives, filament en stock, valeur, consommation estimée) restent affichés en haut de l'onglet Stats, au-dessus des sous-onglets, quel que soit le sous-onglet ouvert
+
 ## 1.12.1 — octobre 2026 — onglet Stats en quatre sous-onglets
 
 - L'onglet Stats est réorganisé en sous-onglets : **Aperçu** (indicateurs, carte « À surveiller », graphique mensuel), **Stock** (par matière et par couleur), **Consommation** (par matière et autonomie complète) et **Suivi** (fraîcheur des pesées, bobines dormantes)
