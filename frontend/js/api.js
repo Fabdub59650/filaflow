@@ -88,9 +88,12 @@ async function _apiFetch(method, path, body) {
     throw new Error('Non authentifié');
   }
   if (!r.ok) {
-    let msg = r.statusText;
-    try { msg = (await r.json()).error || msg; } catch(_) {}
-    throw new Error(msg);
+    let msg = r.statusText, data = null;
+    try { data = await r.json(); msg = data.error || msg; } catch(_) {}
+    const err = new Error(msg);
+    err.status = r.status;
+    err.data = data;   // corps de la réponse (ex. pesée suspecte : issues)
+    throw err;
   }
   return r.json();
 }

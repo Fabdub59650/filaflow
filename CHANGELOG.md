@@ -1,5 +1,14 @@
 # Changelog — FilaFlow
 
+## 1.13.0 — octobre 2026 — pesées suspectes et archivage de fin de bobine
+
+- Contrôle des pesées à l'enregistrement, désormais fait par le serveur avec les mêmes règles pour tous les points d'entrée (nouveau `backend/weighing-rules.js`) : poids qui remonte, plus que plein, brut sous la tare, et baisse brutale (plus de la moitié du poids d'origine depuis la pesée précédente)
+- Saisie manuelle : une pesée inhabituelle ouvre une fenêtre de confirmation qui liste les motifs (*Corriger la saisie* ou *Enregistrer quand même*) ; elle remplace l'ancien contrôle côté écran, limité au poids qui remonte
+- Balance TigerTag : la pesée suspecte est enregistrée mais marquée ; une notification indique les motifs, et la bobine apparaît dans Outils › Inventaire (« Pesée automatique suspecte »). Tant qu'elle n'est pas confirmée, cette pesée est ignorée des statistiques (consommation, autonomie). *Confirmer* dans l'Inventaire lève le marquage
+- Fin de bobine : après une pesée sous le poids résiduel (15 g par défaut), proposition d'archiver la bobine ; nouvelle bande « N bobines vides à archiver » sur l'écran Filaments avec *Tout archiver* (l'historique de pesées est conservé, le poids restant n'est pas modifié)
+- Paramètres › Interface : interrupteur « Contrôle des pesées » et poids résiduel d'archivage
+- Base : colonne `filament_weighings.flag` (ajoutée automatiquement, idempotente) ; API : `POST /api/filaments/:id/archive`, `POST /api/filaments/archive-empty`, `POST /api/weighings` renvoie 409 avec `issues` tant que `confirmed` n'est pas vrai
+
 ## 1.12.2 — octobre 2026 — indicateurs Stats au-dessus des sous-onglets
 
 - Les quatre indicateurs (bobines actives, filament en stock, valeur, consommation estimée) restent affichés en haut de l'onglet Stats, au-dessus des sous-onglets, quel que soit le sous-onglet ouvert

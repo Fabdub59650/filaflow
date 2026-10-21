@@ -6,6 +6,7 @@
  *  - événement   : la dernière pesée remonte au-dessus de la précédente (+ tolérance),
  *                  ou son poids brut est inférieur à la tare ;
  *  - état        : tare manquante, poids restant supérieur au poids total, 0 g mais non archivée.
+ * Une pesée automatique marquée suspecte (voir weighing-rules.js) compte parmi les événements.
  * « Confirmer » efface l'âge et les événements (jusqu'à la prochaine pesée) ;
  * les problèmes d'état ne disparaissent qu'une fois corrigés sur la fiche.
  */
@@ -16,6 +17,7 @@ const { logAction } = require('../history');
 const REASONS = {
   rising:       { group: 'incoherence', label: 'Poids qui remonte' },
   under_tare:   { group: 'incoherence', label: 'Pesée sous la tare' },
+  flagged:      { group: 'incoherence', label: 'Pesée automatique suspecte' },
   over_full:    { group: 'incoherence', label: 'Plus que plein' },
   no_tare:      { group: 'donnees',     label: 'Tare manquante' },
   empty_active: { group: 'donnees',     label: 'Vide mais active' },
@@ -50,7 +52,7 @@ async function computeInventory() {
 
   // Deux dernières pesées de chaque bobine active
   const [weighings] = await db.query(
-    `SELECT filament_id, gross_weight, spool_weight, net_weight, created_at FROM (
+    `SELECT filament_id, gross_weight, spool_weight, net_weight, flag, created_at FROM (
        SELECT w.*, ROW_NUMBER() OVER (PARTITION BY w.filament_id ORDER BY w.created_at DESC, w.id DESC) AS rn
        FROM filament_weighings w JOIN filaments f ON f.id = w.filament_id AND f.archived = 0
      ) t WHERE rn <= 2 ORDER BY filament_id, rn`);
@@ -81,6 +83,7 @@ async function computeInventory() {
     if (last && !eventCleared && num(last.spool_weight) > 0 && num(last.gross_weight) < num(last.spool_weight)) {
       add('under_tare', `brut ${Math.round(num(last.gross_weight))} g < tare ${Math.round(num(last.spool_weight))} g`);
     }
+    if (last && last.flag && !eventCleared) add('flagged', last.flag);
     if (total !== null && remaining !== null && remaining > total + tol) {
       add('over_full', `${Math.round(remaining)} g pour ${Math.round(total)} g au total`);
     }
@@ -100,7 +103,7 @@ async function computeInventory() {
         reasons,
         rank,
         // « Confirmer » n'a de sens que s'il reste une alerte d'âge ou d'événement
-        can_confirm: reasons.some(r => ['rising', 'under_tare', 'never', 'stale'].includes(r.code)),
+        can_confirm: reasons.some(r => ['rising', 'under_tare', 'flagged', 'never', 'stale'].includes(r.code)),
       });
     }
   }
@@ -130,6 +133,8 @@ router.post('/:id/confirm', async (req, res) => {
     const [[f]] = await db.query('SELECT id, name, weight_remaining FROM filaments WHERE id=?', [req.params.id]);
     if (!f) return res.status(404).json({ error: 'Bobine introuvable' });
     await db.query('UPDATE filaments SET inventory_checked_at = NOW() WHERE id=?', [f.id]);
+    // La validation lève aussi le marquage « suspecte » : la pesée redevient comptée dans les statistiques
+    await db.query('UPDATE filament_weighings SET flag = NULL WHERE filament_id=?', [f.id]);
     await logAction('filament', f.id, 'inventory',
       'Inventaire : poids confirmé (' + Math.round(parseFloat(f.weight_remaining) || 0) + 'g) — ' + f.name);
     res.json({ ok: true });

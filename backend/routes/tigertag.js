@@ -74,13 +74,18 @@ router.post('/webhook', async (req, res) => {
     const netWeight   = Math.max(0, grossW - spoolWeight);
     const prevWeight  = parseFloat(filament.weight_remaining);
 
+    // Contrôle de cohérence : la balance ne peut pas poser de question, la pesée suspecte est
+    // enregistrée mais marquée ; elle reste signalée dans l'Inventaire jusqu'à confirmation.
+    const rules = require('../weighing-rules');
+    const ev = await rules.evaluate(filament, grossW, spoolWeight, netWeight);
+
     // Enregistrer la pesée
     const [result] = await db.query(
       `INSERT INTO filament_weighings
-         (filament_id, gross_weight, spool_weight, net_weight, previous_weight, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+         (filament_id, gross_weight, spool_weight, net_weight, previous_weight, notes, flag)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [filament.id, grossW, spoolWeight, netWeight, prevWeight,
-       notes || 'TigerTag Scale (auto)']
+       notes || 'TigerTag Scale (auto)', rules.flagText(ev.issues)]
     );
 
     // Mettre à jour le stock
@@ -103,6 +108,7 @@ router.post('/webhook', async (req, res) => {
       source: 'scale', weighing_id: result.insertId,
       filament_id: filament.id, name: filament.name, spool_number: filament.spool_number || null, color_hex: filament.color_hex,
       net: netWeight, previous: prevWeight, total: parseFloat(filament.weight_total) || 0,
+      issues: ev.issues, empty: rules.isEmpty(netWeight, ev.settings, filament),
       at: new Date().toISOString(),
     });
 
@@ -117,7 +123,8 @@ router.post('/webhook', async (req, res) => {
       filament_id:      filament.id,
       material:         filament.material,
       color_hex:        filament.color_hex,
-      weighing_id:      result.insertId
+      weighing_id:      result.insertId,
+      suspect:          ev.issues.length > 0
     });
 
   } catch (e) {

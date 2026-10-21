@@ -33,6 +33,8 @@ router.put('/', async (req, res) => {
       report_email:       'Email rapport',
       weekly_report_enabled: 'Rapport hebdomadaire',
       autonomy_alert_days:   'Seuil autonomie (jours)',
+      weighing_check_enabled: 'Contrôle des pesées',
+      spool_empty_grams:      'Poids résiduel (g)',
       auth_enabled:       'Authentification',
       auth_password:      'Mot de passe app',
       tigertag_webhook_token: 'Jeton webhook balance',

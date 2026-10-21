@@ -1,5 +1,5 @@
 // ── FilaFlow Service Worker ──────────────────────────────
-const CACHE_NAME    = 'filaflow-v1.12.2';   // cache hors-ligne uniquement
+const CACHE_NAME    = 'filaflow-v1.13.0';   // cache hors-ligne uniquement
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+const rules  = require('../weighing-rules');
 
 // GET /api/weighings?filament_id=X
 router.get('/', async (req, res) => {
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
 // POST /api/weighings — enregistrer une pesée et mettre à jour le stock
 router.post('/', async (req, res) => {
   try {
-    const { filament_id, gross_weight, notes } = req.body;
+    const { filament_id, gross_weight, notes, confirmed } = req.body;
     if (!filament_id || gross_weight === undefined) {
       return res.status(400).json({ error: 'filament_id et gross_weight requis' });
     }
@@ -33,6 +34,15 @@ router.post('/', async (req, res) => {
     const grossW       = parseFloat(gross_weight);
     const netWeight    = Math.max(0, grossW - spoolWeight);
     const prevWeight   = parseFloat(filament.weight_remaining);
+
+    // Contrôle de cohérence : une pesée inhabituelle doit être confirmée (confirmed: true)
+    const ev = await rules.evaluate(filament, grossW, spoolWeight, netWeight);
+    if (ev.issues.length && !confirmed) {
+      return res.status(409).json({
+        error: 'Pesée inhabituelle', suspect: true, issues: ev.issues,
+        last_net: ev.lastNet, new_net: netWeight, filament_name: filament.name,
+      });
+    }
 
     // Enregistrer la pesée
     const [result] = await db.query(
@@ -60,7 +70,7 @@ router.post('/', async (req, res) => {
       });
     } catch (_) {}
 
-    res.status(201).json({ weighing, filament: updated });
+    res.status(201).json({ weighing, filament: updated, spool_empty: rules.isEmpty(netWeight, ev.settings, updated) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

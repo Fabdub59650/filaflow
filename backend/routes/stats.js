@@ -308,7 +308,7 @@ async function loadStats(months) {
             spool_number, location, archived, inventory_checked_at
      FROM filaments`);
   const [weighings] = await db.query(
-    `SELECT id, filament_id, previous_weight, net_weight, created_at FROM filament_weighings`);
+    `SELECT id, filament_id, previous_weight, net_weight, created_at FROM filament_weighings WHERE flag IS NULL`);
   const [settingRows] = await db.query(
     `SELECT key_name, value FROM settings WHERE key_name IN
        ('inventory_days','inventory_tolerance','stock_alert_enabled','stock_alert_threshold','autonomy_alert_days')`);

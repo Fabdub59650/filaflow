@@ -177,3 +177,10 @@ ALTER TABLE `filaments` ADD COLUMN IF NOT EXISTS `inventory_checked_at` datetime
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('inventory_enabled','true');
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('inventory_days','90');
 INSERT IGNORE INTO `settings` (key_name, value) VALUES ('inventory_tolerance','10');
+
+-- ── v1.13.0 — Pesées suspectes et archivage de fin de bobine ─────────
+-- Motif d'une pesée automatique jugée suspecte (NULL = pesée normale ou confirmée)
+ALTER TABLE `filament_weighings` ADD COLUMN IF NOT EXISTS `flag` varchar(120) DEFAULT NULL
+  COMMENT 'Pesée suspecte non confirmée (motif) ; exclue des statistiques';
+INSERT IGNORE INTO `settings` (key_name, value) VALUES ('weighing_check_enabled','true');
+INSERT IGNORE INTO `settings` (key_name, value) VALUES ('spool_empty_grams','15');

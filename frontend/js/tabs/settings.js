@@ -145,6 +145,25 @@ async function renderSettings() {
         </div>
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
           <div>
+            <div style="font-size:13px">Contrôle des pesées</div>
+            <div style="font-size:11px;color:var(--text3)">Demande confirmation quand une pesée semble inhabituelle (poids qui remonte, sous la tare, baisse brutale) ; sur la balance, la pesée est marquée et ignorée des stats jusqu'à confirmation</div>
+          </div>
+          <div onclick="toggleSetting('weighing_check_enabled', this)" id="toggle-weighing-check"
+               data-enabled="${settings.weighing_check_enabled!=='false'?'1':'0'}"
+               style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
+                      background:${settings.weighing_check_enabled!=='false'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
+            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
+                        top:2px;transition:left 0.2s;left:${settings.weighing_check_enabled!=='false'?'19px':'2px'}"></div>
+          </div>
+        </label>
+        <div style="display:flex;align-items:center;gap:10px;padding-left:4px;flex-wrap:wrap">
+          <label style="font-size:13px;color:var(--text2)" for="set-empty-grams">Proposer d'archiver une bobine sous</label>
+          <input id="set-empty-grams" type="number" min="0" max="200" step="5"
+                 value="${settings.spool_empty_grams===undefined||settings.spool_empty_grams===''?15:settings.spool_empty_grams}" style="width:80px" onchange="saveSettings()">
+          <span style="font-size:13px;color:var(--text3)">g restants (fin de bobine)</span>
+        </div>
+        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+          <div>
             <div style="font-size:13px">Inventaire des bobines</div>
             <div style="font-size:11px;color:var(--text3)">Signale dans Outils › Inventaire les bobines pesées il y a longtemps ou aux valeurs incohérentes</div>
           </div>
@@ -719,6 +738,8 @@ async function saveSettings() {
     show_locations:        togLocs     ? String(togLocs.dataset.enabled     === '1') : 'true',
     stock_alert_enabled:        document.getElementById('toggle-stock-alert')?.dataset.enabled === '1' ? 'true' : 'false',
     stock_alert_threshold:      document.getElementById('set-stock-threshold')?.value || '20',
+    weighing_check_enabled:     document.getElementById('toggle-weighing-check')?.dataset.enabled === '0' ? 'false' : 'true',
+    spool_empty_grams:          (function(v) { return isNaN(v) ? '15' : String(Math.max(0, v)); })(parseFloat(document.getElementById('set-empty-grams')?.value)),
     autonomy_alert_days:        String(Math.min(365, Math.max(7, parseInt(document.getElementById('set-autonomy-days')?.value, 10) || 30))),
     inventory_enabled:          document.getElementById('toggle-inventory')?.dataset.enabled === '0' ? 'false' : 'true',
     inventory_days:             String(Math.max(7, parseInt(document.getElementById('set-inventory-days')?.value, 10) || 90)),
@@ -734,6 +755,7 @@ async function saveSettings() {
     document.title = newName;
     window._stockAlertEnabled   = body.stock_alert_enabled === 'true';
     window._stockAlertThreshold = parseInt(body.stock_alert_threshold) || 20;
+    window._spoolEmptyGrams     = parseFloat(body.spool_empty_grams);
   } catch (e) { toast(e.message, 'error'); }
 }
 

@@ -139,6 +139,7 @@ window._stockAlertEnabled      = false;
     window._showLocations          = s.show_locations      !== 'false';
     window._stockAlertEnabled      = s.stock_alert_enabled !== 'false';
     window._stockAlertThreshold    = parseInt(s.stock_alert_threshold) || 20;
+    window._spoolEmptyGrams        = isNaN(parseFloat(s.spool_empty_grams)) ? 15 : parseFloat(s.spool_empty_grams);
   } catch(_) {}
 
   // Auth optionnelle — ne bloque jamais le démarrage

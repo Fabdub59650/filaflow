@@ -110,7 +110,7 @@ router.patch('/:id/weigh', async (req, res) => {
 
     // Récupérer le poids actuel avant mise à jour
     const [[current]] = await db.query(
-      'SELECT weight_remaining, spool_weight, name FROM filaments WHERE id=?',
+      'SELECT weight_remaining, weight_total, spool_weight, name FROM filaments WHERE id=?',
       [req.params.id]
     );
     const previousWeight = parseFloat(current?.weight_remaining || 0);
@@ -124,15 +124,44 @@ router.patch('/:id/weigh', async (req, res) => {
     // Enregistrer dans l'historique des pesées
     const grossW = gross_weight !== undefined ? parseFloat(gross_weight) : netWeight + parseFloat(spool_weight || current?.spool_weight || 0);
     const spoolW = spool_weight !== undefined ? parseFloat(spool_weight) : parseFloat(current?.spool_weight || 0);
+    const rules = require('../weighing-rules');
+    const ev = await rules.evaluate({ id: req.params.id, weight_total: current?.weight_total }, grossW, spoolW || 0, netWeight);
     await db.query(
-      `INSERT INTO filament_weighings (filament_id, gross_weight, spool_weight, net_weight, previous_weight, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.params.id, grossW, spoolW || null, netWeight, previousWeight, 'Pesée kiosque']
+      `INSERT INTO filament_weighings (filament_id, gross_weight, spool_weight, net_weight, previous_weight, notes, flag)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [req.params.id, grossW, spoolW || null, netWeight, previousWeight, 'Pesée kiosque', rules.flagText(ev.issues)]
     );
 
     await logAction('filament', req.params.id, 'weigh',
       'Pesée kiosque : ' + Math.round(netWeight) + 'g — ' + (current?.name || ''));
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Archivage d'une bobine terminée : l'historique de pesées est conservé, le poids restant n'est pas modifié
+router.post('/:id/archive', async (req, res) => {
+  try {
+    const archived = req.body && req.body.archived === 0 ? 0 : 1;
+    const [[f]] = await db.query('SELECT id, name FROM filaments WHERE id=?', [req.params.id]);
+    if (!f) return res.status(404).json({ error: 'Bobine introuvable' });
+    await db.query('UPDATE filaments SET archived=? WHERE id=?', [archived, f.id]);
+    await logAction('filament', f.id, archived ? 'archive' : 'unarchive',
+      (archived ? 'Bobine terminée, archivée' : 'Bobine désarchivée') + ' — ' + f.name);
+    res.json({ ok: true, archived });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Archive d'un coup toutes les bobines actives dont le restant est sous le poids résiduel
+router.post('/archive-empty', async (req, res) => {
+  try {
+    const { emptyGrams } = await require('../weighing-rules').getSettings();
+    const [rows] = await db.query(
+      'SELECT id, name FROM filaments WHERE archived=0 AND weight_remaining <= ?', [emptyGrams]);
+    for (const f of rows) {
+      await db.query('UPDATE filaments SET archived=1 WHERE id=?', [f.id]);
+      await logAction('filament', f.id, 'archive', 'Bobine terminée, archivée — ' + f.name);
+    }
+    res.json({ ok: true, count: rows.length, names: rows.map(r => r.name) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

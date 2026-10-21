@@ -661,11 +661,11 @@ function renderFilamentGrid() {
             '<div class="spool-grid">' + g.items.map(spoolCardHtml).join('') + '</div>' +
           '</section>';
         }).join('');
-    content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() + body;
+    content.innerHTML = renderFilHeader() + renderFilToolbar() + renderEmptySpoolsBanner() + renderLowStockBanner() + renderFilAdvancedPanel() + body;
     return;
   }
 
-  content.innerHTML = renderFilHeader() + renderFilToolbar() + renderLowStockBanner() + renderFilAdvancedPanel() + groups.map(g => { const filaments = g.items; const on = groupIsFiltered(grpMode, g.key); return `
+  content.innerHTML = renderFilHeader() + renderFilToolbar() + renderEmptySpoolsBanner() + renderLowStockBanner() + renderFilAdvancedPanel() + groups.map(g => { const filaments = g.items; const on = groupIsFiltered(grpMode, g.key); return `
     <div class="card">
       <div class="card-header" ${grpMode === 'none' ? '' : `style="cursor:pointer" onclick="${groupFilterCall(grpMode, g.key)}"
            title="${on ? 'Afficher tous les groupes' : 'Filtrer sur ' + escHtml(g.label)}"`}>
@@ -1234,49 +1234,11 @@ async function saveWeighing(forceConfirm) {
   if (isNaN(gross) || gross <= 0) return toast('Poids brut invalide', 'error');
 
   const filament = allFilaments.find(f => f.id == filamentId);
-  const spool    = parseWeight(spoolRaw) || parseFloat(filament?.spool_weight || 0) || 0;
-  const net      = Math.max(0, gross - spool);
-  const TOLERANCE = 5;
 
-  // ── Vérification cohérence ────────────────────────────────
-  if (!forceConfirm) {
-    try {
-      const history = await API.get('/weighings?filament_id=' + filamentId + '&limit=1');
-      let incoherent = false;
-      let ctx = {};
-
-      if (history && history.length > 0) {
-        const lastNet = parseFloat(history[0].net_weight);
-        if (net > lastNet + TOLERANCE) {
-          incoherent = true;
-          ctx = {
-            filamentName: filament?.name || 'bobine #' + filamentId,
-            lastNet, newNet: net, diff: net - lastNet, isVsTotal: false,
-            lastDate: typeof fmtDateTime === 'function' ? fmtDateTime(history[0].created_at) : history[0].created_at,
-          };
-        }
-      }
-      if (!incoherent && filament && net > parseFloat(filament.weight_total || 0) + TOLERANCE) {
-        incoherent = true;
-        ctx = {
-          filamentName: filament.name,
-          lastNet: parseFloat(filament.weight_total),
-          lastDate: 'poids total de la bobine neuve',
-          newNet: net, diff: net - parseFloat(filament.weight_total), isVsTotal: true,
-        };
-      }
-
-      if (incoherent) {
-        // Mémoriser les données AVANT de fermer le formulaire
-        window._pendingWeighing = { filamentId, grossRaw, spoolRaw, notes, prefillId };
-        openConfirmWeighing(ctx);
-        return;
-      }
-    } catch(_) {}
-  }
-
-  // ── Sauvegarde effective ──────────────────────────────────
-  window._pendingWeighing = null;
+  // ── Sauvegarde ────────────────────────────────────────────
+  // Le contrôle de cohérence est fait par le serveur (backend/weighing-rules.js) : une pesée
+  // inhabituelle revient en 409 avec ses motifs, et n'est enregistrée qu'une fois confirmée.
+  window._pendingWeighing = { filamentId, grossRaw, spoolRaw, notes, prefillId };
   const spoolOver = parseWeight(spoolRaw);
   try {
     if (!isNaN(spoolOver) && spoolOver > 0) {
@@ -1288,47 +1250,95 @@ async function saveWeighing(forceConfirm) {
       filament_id:  parseInt(filamentId),
       gross_weight: gross,
       notes:        notes || null,
+      confirmed:    !!forceConfirm,
     });
+    window._pendingWeighing = null;
     closeModal();
     toast('Stock mis à jour : ' + parseFloat(result.weighing.net_weight).toFixed(0) + 'g', 'success');
+    await renderFilaments();
+    if (result.spool_empty) offerArchive(result.filament);
+  } catch (e) {
+    if (e.status === 409 && e.data && e.data.suspect) { openConfirmWeighing(e.data); return; }
+    toast(e.message, 'error');
+  }
+}
+
+// Fenêtre de confirmation d'une pesée inhabituelle (motifs renvoyés par le serveur)
+function openConfirmWeighing(d) {
+  const fmt = function(n) { return Math.round(n) + 'g'; };
+  const rows = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+      '<span style="font-size:13px;color:var(--text2)">Pesée précédente</span>' +
+      '<span style="font-size:15px;font-weight:500">' + (d.last_net === null || d.last_net === undefined ? '—' : fmt(d.last_net)) + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:13px;color:var(--text2)">Nouvelle pesée</span>' +
+      '<span style="font-size:15px;font-weight:500">' + fmt(d.new_net) + '</span></div>';
+  const issues = d.issues.map(function(i) {
+    return '<li style="margin-bottom:4px"><b>' + escHtml(i.label) + '</b> <span style="color:var(--text3)">· ' + escHtml(i.detail) + '</span></li>';
+  }).join('');
+  openModal(
+    '<div style="text-align:center;margin-bottom:16px">' +
+      '<div style="font-size:40px;margin-bottom:8px">⚠️</div>' +
+      '<div style="font-size:16px;font-weight:600;color:#f59e0b;margin-bottom:4px">Pesée inhabituelle</div>' +
+      '<div style="font-size:13px;color:var(--text2)">' + escHtml(d.filament_name || '') + '</div>' +
+    '</div>' +
+    '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:12px">' + rows + '</div>' +
+    '<ul style="font-size:13px;margin:0 0 16px 18px;padding:0">' + issues + '</ul>' +
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:16px;text-align:center">' +
+      'Vérifiez la saisie (bobine, tare, poids brut) avant de confirmer.' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" onclick="reopenWeighingForm()">← Corriger la saisie</button>' +
+      '<button class="btn btn-danger" onclick="saveWeighing(true)">Enregistrer quand même</button>' +
+    '</div>',
+    '⚠ Vérification pesée'
+  );
+}
+
+// Bobine terminée : proposer l'archivage après une pesée proche de zéro
+function offerArchive(f) {
+  if (!f || f.archived) return;
+  showActionToast({
+    key: 'archive-' + f.id,
+    label: 'Bobine terminée ?',
+    title: escHtml(f.name) + (f.spool_number ? ' (' + escHtml(f.spool_number) + ')' : ''),
+    sub: 'Il reste ' + fmtGrams(f.weight_remaining) + '. L\'archiver la retire de la liste et du stock ; son historique est conservé.',
+    swatch: escHtml(f.color_hex || '#888'),
+    actions: [
+      { text: 'Archiver', primary: true, run: function() { archiveFinished(f.id); } },
+    ],
+  });
+}
+
+async function archiveFinished(id) {
+  try {
+    await API.post('/filaments/' + id + '/archive', { archived: 1 });
+    toast('Bobine archivée');
     renderFilaments();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-function openConfirmWeighing({ filamentName, lastNet, lastDate, newNet, diff, isVsTotal }) {
-  const diffStr = '+' + Math.round(diff) + 'g';
-  const label   = isVsTotal ? 'Poids total de la bobine neuve' : 'Dernière pesée';
-  const when    = isVsTotal ? '' : '<span style="font-size:11px;color:var(--text3)">(' + lastDate + ')</span>';
+async function archiveAllEmpty() {
+  try {
+    const r = await API.post('/filaments/archive-empty', {});
+    toast(r.count + ' bobine' + (r.count > 1 ? 's' : '') + ' archivée' + (r.count > 1 ? 's' : ''), 'success');
+    renderFilaments();
+  } catch (e) { toast(e.message, 'error'); }
+}
 
-  openModal(
-    '<div style="text-align:center;margin-bottom:16px">' +
-      '<div style="font-size:40px;margin-bottom:8px">⚠️</div>' +
-      '<div style="font-size:16px;font-weight:600;color:#f59e0b;margin-bottom:4px">Pesée incohérente</div>' +
-      '<div style="font-size:13px;color:var(--text2)">' + filamentName + '</div>' +
+// Bande « bobines vides à archiver » (bobines actives sous le poids résiduel)
+function renderEmptySpoolsBanner() {
+  const lim = window._spoolEmptyGrams !== undefined ? window._spoolEmptyGrams : 15;
+  const empty = allFilaments.filter(function(f) { return !f.archived && (parseFloat(f.weight_remaining) || 0) <= lim; });
+  if (!empty.length || showArchived) return '';
+  const names = empty.slice(0, 4).map(function(f) { return escHtml(f.name); }).join(' · ') + (empty.length > 4 ? ' …' : '');
+  return '<div class="hazard" role="status">' +
+    '<div class="hazard-stripes" aria-hidden="true"></div>' +
+    '<div class="hazard-body">' +
+      '<div><span class="hazard-title">' + empty.length + ' bobine' + (empty.length > 1 ? 's' : '') + ' vide' + (empty.length > 1 ? 's' : '') + ' à archiver</span>' +
+      '<span class="hazard-names">' + names + '</span></div>' +
+      '<button type="button" class="btn btn-sm" onclick="archiveAllEmpty()">Tout archiver</button>' +
     '</div>' +
-    '<div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:16px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-        '<span style="font-size:13px;color:var(--text2)">' + label + ' ' + when + '</span>' +
-        '<span style="font-size:15px;font-weight:500">' + Math.round(lastNet) + 'g</span>' +
-      '</div>' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-        '<span style="font-size:13px;color:var(--text2)">Nouvelle pesée</span>' +
-        '<span style="font-size:15px;font-weight:500">' + Math.round(newNet) + 'g</span>' +
-      '</div>' +
-      '<div style="border-top:0.5px solid var(--border);padding-top:8px;display:flex;justify-content:space-between">' +
-        '<span style="font-size:13px;color:var(--text2)">Écart</span>' +
-        '<span style="font-size:15px;font-weight:600;color:#ef4444">' + diffStr + '</span>' +
-      '</div>' +
-    '</div>' +
-    '<div style="font-size:13px;color:var(--text2);margin-bottom:16px;text-align:center">' +
-      'Un filament ne peut pas augmenter de poids.<br>Vérifiez votre saisie avant de confirmer.' +
-    '</div>' +
-    '<div class="modal-footer">' +
-      '<button class="btn" onclick="reopenWeighingForm()">← Corriger la saisie</button>' +
-      '<button class="btn btn-danger" onclick="saveWeighing(true)">Confirmer quand même</button>' +
-    '</div>',
-    '⚠ Vérification pesée'
-  );
+  '</div>';
 }
 
 function reopenWeighingForm() {
@@ -2091,6 +2101,19 @@ function onLiveWeighing(d) {
   }
   if (d.source === 'scale') {
     showWeighingToast(d);
+    if (d.issues && d.issues.length) {
+      showActionToast({
+        key: 'scale-suspect-' + d.filament_id,
+        label: 'Pesée suspecte',
+        title: escHtml(d.name) + (d.spool_number ? ' (' + escHtml(d.spool_number) + ')' : ''),
+        sub: d.issues.map(function(i) { return escHtml(i.label + ' · ' + i.detail); }).join('<br>') +
+             '<br>Enregistrée mais ignorée des statistiques tant qu\'elle n\'est pas confirmée (Outils › Inventaire).',
+        swatch: escHtml(d.color_hex || '#888'),
+        actions: [{ text: 'Ouvrir l\'inventaire', primary: true, run: function() { openInventory(); } }],
+      });
+    } else if (d.empty) {
+      offerArchive({ id: d.filament_id, name: d.name, spool_number: d.spool_number, color_hex: d.color_hex, weight_remaining: d.net });
+    }
     if (typeof refreshScaleStatus === 'function') refreshScaleStatus();
   }
   // Rafraîchir l'écran seulement s'il est visible et qu'aucune fenêtre n'est ouverte
