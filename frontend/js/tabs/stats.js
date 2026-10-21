@@ -1,9 +1,20 @@
 // ── Onglet Stats ────────────────────────────────────────────────────────
 // Stock (poids, valeur), fraîcheur des pesées, consommation estimée, bobines dormantes.
 // Tout est calculé côté serveur : backend/routes/stats.js (voir son en-tête pour les règles).
-// Page légère : tableaux et barres CSS ; un seul graphique (consommation mensuelle, Chart.js) avec repli en tableau.
+// Quatre sous-onglets : Aperçu (indicateurs, À surveiller, graphique), Stock, Consommation (+ autonomie), Suivi (pesées, dormantes).
+// Tableaux et barres CSS ; un seul graphique (consommation mensuelle, Chart.js) avec repli en tableau.
 
 let _statsChart = null;
+let _statsTab = 'apercu';   // sous-onglet : apercu | stock | conso | suivi
+let _statsData = null;      // dernières données (changer de sous-onglet ne recharge pas)
+let _statsCards = null;
+try { _statsTab = localStorage.getItem('stats_tab') || 'apercu'; } catch (_) {}
+const STATS_TABS = [
+  { id: 'apercu', label: 'Aperçu' },
+  { id: 'stock',  label: 'Stock' },
+  { id: 'conso',  label: 'Consommation' },
+  { id: 'suivi',  label: 'Suivi' },
+];
 let _statsMonths = '6';   // période : 3 | 6 | 12 | 0 (tout)
 
 // Groupes de couleurs dépliés (conservés d'un rafraîchissement à l'autre)
@@ -104,7 +115,7 @@ async function renderStats(months) {
 
   document.getElementById('page-title').textContent = 'Stats';
   document.getElementById('topbar-actions').innerHTML =
-    '<select id="stats-period" onchange="renderStats(this.value)" style="font-size:12px;margin-right:8px" title="Période pour la consommation et les bobines dormantes">' +
+    '<select id="stats-period" onchange="renderStats(this.value)" style="font-size:12px;margin-right:8px" title="Période pour la consommation, le graphique et les bobines dormantes">' +
       STATS_PERIODS.map(function(p) {
         return '<option value="' + p.v + '"' + (p.v === _statsMonths ? ' selected' : '') + '>' + p.label + '</option>';
       }).join('') +
@@ -144,7 +155,7 @@ async function renderStats(months) {
   const au = d.autonomy;
   let autoCard = '';
   if (au && au.items.length) {
-    const shown = au.items.slice(0, 12);
+    const shown = au.items;
     autoCard = '<div class="card"><div class="card-header"><span class="card-title">Autonomie par couleur</span>' +
       (au.to_buy.length ? '<span class="badge badge-danger" style="background:var(--danger-bg,#fee2e2);color:var(--danger);padding:2px 10px;border-radius:10px;font-size:12px;font-weight:500">' +
         au.to_buy.length + ' à racheter</span>' : '<span style="color:var(--success);font-size:12px">Rien à racheter</span>') + '</div>' +
@@ -282,17 +293,79 @@ async function renderStats(months) {
     '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Bobines entamées (hors bobines neuves) sans baisse de poids mesurée ' +
       statsPeriodLabel(months_) + '. Une bobine peu pesée peut apparaître ici alors qu’elle sert : une pesée récente la fait sortir de la liste.</div></div>';
 
-  content.innerHTML = metrics + autoCard + monthCard +
-    '<div class="stats-cols">' +
-      '<div class="stats-col">' + matCard + consCard + freshCard + '</div>' +
-      '<div class="stats-col">' + colorCard + dormCard + '</div>' +
-    '</div>';
+  // ── À surveiller (Aperçu) ──────────────────────────────
+  const watch = [];
+  if (au && au.to_buy.length) {
+    const names = au.to_buy.slice(0, 3).map(function(x) { return escHtml(x.material + ' ' + x.color_name); }).join(', ');
+    watch.push({ c: 'var(--danger)', t: '<b>' + au.to_buy.length + ' couleur' + (au.to_buy.length > 1 ? 's' : '') + ' à racheter</b> : ' + names +
+      (au.to_buy.length > 3 ? '…' : ''), tab: 'conso' });
+  }
+  if (d.low_stock && d.low_stock.threshold && d.low_stock.items.length) {
+    const n = d.low_stock.items.length;
+    watch.push({ c: 'var(--danger)', t: '<b>' + n + ' bobine' + (n > 1 ? 's' : '') + ' presque vide' + (n > 1 ? 's' : '') + '</b> (sous ' + d.low_stock.threshold + ' %)', tab: 'stock' });
+  }
+  if (fr.old + fr.never) {
+    const n = fr.old + fr.never;
+    watch.push({ c: 'var(--warning,#BA7517)', t: '<b>' + n + ' pesée' + (n > 1 ? 's' : '') + ' à refaire</b> (plus de ' + fr.inventory_days + ' jours' +
+      (fr.never ? ', dont ' + fr.never + ' jamais pesée' + (fr.never > 1 ? 's' : '') : '') + ')', tab: 'suivi' });
+  }
+  if (dm.count) {
+    watch.push({ c: 'var(--text3)', t: '<b>' + dm.count + ' bobine' + (dm.count > 1 ? 's' : '') + ' dormante' + (dm.count > 1 ? 's' : '') + '</b> · ' + statsEur(dm.value) + ' immobilisés', tab: 'suivi' });
+  }
+  const watchCard = '<div class="card"><div class="card-header"><span class="card-title">À surveiller</span></div>' +
+    (watch.length ? watch.map(function(w) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px">' +
+        '<span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:' + w.c + '"></span>' +
+        '<span style="flex:1">' + w.t + '</span>' +
+        '<button class="btn btn-sm" onclick="statsSwitch(\'' + w.tab + '\')">Détail</button></div>';
+    }).join('') : '<div style="color:var(--success);font-size:13px">Rien à signaler.</div>') + '</div>';
 
-  if (monthCard && !statsDrawChart(mo)) {
+  _statsCards = {
+    metrics: metrics, watch: watchCard, month: monthCard, auto: autoCard,
+    mat: matCard, color: colorCard, cons: consCard, fresh: freshCard, dorm: dormCard,
+  };
+  _statsData = d;
+  statsShow();
+}
+
+function statsSwitch(tab) {
+  _statsTab = tab;
+  try { localStorage.setItem('stats_tab', tab); } catch (_) {}
+  statsShow();
+}
+
+// Affiche le sous-onglet courant à partir des cartes déjà construites
+function statsShow() {
+  const c = _statsCards, content = document.getElementById('content');
+  if (!c) return;
+  if (!STATS_TABS.some(function(t) { return t.id === _statsTab; })) _statsTab = 'apercu';
+
+  const bar = '<div style="display:flex;border-bottom:2px solid var(--border2);margin-bottom:20px;flex-wrap:wrap">' +
+    STATS_TABS.map(function(t) {
+      const a = t.id === _statsTab;
+      return '<button onclick="statsSwitch(\'' + t.id + '\')" style="padding:8px 16px;font-size:13px;font-weight:' + (a ? '600' : '400') +
+        ';border:none;cursor:pointer;background:transparent;color:' + (a ? 'var(--accent)' : 'var(--text2)') +
+        ';border-bottom:' + (a ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;white-space:nowrap">' + t.label + '</button>';
+    }).join('') + '</div>';
+
+  let body;
+  if (_statsTab === 'stock')      body = '<div class="stats-cols"><div class="stats-col">' + c.mat + '</div><div class="stats-col">' + c.color + '</div></div>';
+  else if (_statsTab === 'conso') body = c.cons + c.auto;
+  else if (_statsTab === 'suivi') body = '<div class="stats-cols"><div class="stats-col">' + c.fresh + '</div><div class="stats-col">' + c.dorm + '</div></div>';
+  else                            body = c.metrics + c.watch + c.month;
+
+  content.innerHTML = bar + body;
+
+  // La période ne joue pas sur l'onglet Stock
+  const sel = document.getElementById('stats-period');
+  if (sel) sel.disabled = _statsTab === 'stock';
+
+  const mo = _statsData.monthly;
+  if (_statsTab === 'apercu' && c.month && !statsDrawChart(mo)) {
     // Chart.js indisponible (hors ligne, CDN non mis en cache) : tableau de repli
     document.getElementById('stats-monthly-chart').parentNode.style.display = 'none';
     document.getElementById('stats-monthly-fallback').innerHTML = statsTable(
       [{ t: 'Mois' }, { t: 'Consommé', right: 1 }],
       mo.months.map(function(k, i) { return '<tr><td>' + statsMonthLabel(k) + '</td><td' + STATS_R + '>' + statsG(mo.total[i]) + '</td></tr>'; }));
-  }
+  } else if (_statsChart && _statsTab !== 'apercu') { _statsChart.destroy(); _statsChart = null; }
 }

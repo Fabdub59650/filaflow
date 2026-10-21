@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.12.1 — octobre 2026 — onglet Stats en quatre sous-onglets
+
+- L'onglet Stats est réorganisé en sous-onglets : **Aperçu** (indicateurs, carte « À surveiller », graphique mensuel), **Stock** (par matière et par couleur), **Consommation** (par matière et autonomie complète) et **Suivi** (fraîcheur des pesées, bobines dormantes)
+- Nouvelle carte « À surveiller » : couleurs à racheter, bobines presque vides, pesées à refaire et bobines dormantes en une ligne chacune, avec un bouton Détail qui ouvre le bon sous-onglet
+- Le dernier sous-onglet ouvert est mémorisé ; le sélecteur de période est grisé sur Stock
+- Le tableau d'autonomie n'est plus limité à 12 lignes
+
 ## 1.12.0 — octobre 2026 — consommation mensuelle, autonomie par couleur, rapport hebdomadaire
 
 - Onglet Stats : graphique de consommation mensuelle (barres empilées par matière, mois civils, le dernier étant partiel ; suit le sélecteur de période) ; tableau de repli si Chart.js n'est pas disponible
