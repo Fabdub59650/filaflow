@@ -1,8 +1,9 @@
 // ── Onglet Stats ────────────────────────────────────────────────────────
 // Stock (poids, valeur), fraîcheur des pesées, consommation estimée, bobines dormantes.
 // Tout est calculé côté serveur : backend/routes/stats.js (voir son en-tête pour les règles).
-// Page volontairement légère : tableaux et barres CSS, pas de graphique.
+// Page légère : tableaux et barres CSS ; un seul graphique (consommation mensuelle, Chart.js) avec repli en tableau.
 
+let _statsChart = null;
 let _statsMonths = '6';   // période : 3 | 6 | 12 | 0 (tout)
 
 // Groupes de couleurs dépliés (conservés d'un rafraîchissement à l'autre)
@@ -54,6 +55,50 @@ function statsPeriodLabel(months) {
   return months ? 'sur les ' + months + ' derniers mois' : 'depuis le début du suivi';
 }
 
+
+const STATS_MAT_COLORS = ['#378ADD', '#1D9E75', '#D85A30', '#BA7517', '#7F77DD', '#D4537E', '#639922', '#888780'];
+function statsMonthLabel(k) {
+  const p = k.split('-');
+  return ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][+p[1] - 1] + ' ' + p[0].slice(2);
+}
+function statsDaysLeft(d, level) {
+  if (level === 'rupture') return 'rupture';
+  if (d < 14) return d + ' j';
+  if (d < 63) return '≈ ' + Math.round(d / 7) + ' sem.';
+  return '≈ ' + Math.round(d / 30.4375) + ' mois';
+}
+
+// Graphique de consommation mensuelle (barres empilées par matière)
+function statsDrawChart(m) {
+  if (_statsChart) { _statsChart.destroy(); _statsChart = null; }
+  const cv = document.getElementById('stats-monthly-chart');
+  if (!cv || typeof Chart === 'undefined') return false;
+  const cs = getComputedStyle(document.documentElement);
+  const tick = (cs.getPropertyValue('--text3') || '#888').trim();
+  const grid = (cs.getPropertyValue('--border') || '#ddd').trim();
+  _statsChart = new Chart(cv, {
+    type: 'bar',
+    data: {
+      labels: m.months.map(statsMonthLabel),
+      datasets: m.by_material.map(function(x, i) {
+        return { label: x.material, data: x.grams, backgroundColor: STATS_MAT_COLORS[i % STATS_MAT_COLORS.length], borderRadius: 2 };
+      }),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, color: tick, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(c) { return c.dataset.label + ' : ' + statsG(c.parsed.y); } } },
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: tick, font: { size: 11 }, maxRotation: 0, autoSkip: true } },
+        y: { stacked: true, beginAtZero: true, grid: { color: grid }, ticks: { color: tick, font: { size: 11 }, callback: function(v) { return statsG(v); } } },
+      },
+    },
+  });
+  return true;
+}
+
 async function renderStats(months) {
   if (months !== undefined && months !== null) _statsMonths = String(months);
 
@@ -93,6 +138,42 @@ async function renderStats(months) {
       st.without_price ? st.without_price + ' bobine' + (st.without_price > 1 ? 's' : '') + ' sans prix' : '') +
     statsMetric('Consommation estimée', statsG(co.grams), statsPeriodLabel(months_)) +
   '</div>';
+
+
+  // ── Autonomie / à racheter ─────────────────────────────
+  const au = d.autonomy;
+  let autoCard = '';
+  if (au && au.items.length) {
+    const shown = au.items.slice(0, 12);
+    autoCard = '<div class="card"><div class="card-header"><span class="card-title">Autonomie par couleur</span>' +
+      (au.to_buy.length ? '<span class="badge badge-danger" style="background:var(--danger-bg,#fee2e2);color:var(--danger);padding:2px 10px;border-radius:10px;font-size:12px;font-weight:500">' +
+        au.to_buy.length + ' à racheter</span>' : '<span style="color:var(--success);font-size:12px">Rien à racheter</span>') + '</div>' +
+      statsTable(
+        [{ t: 'Couleur' }, { t: 'Bobines', right: 1 }, { t: 'Restant', right: 1 }, { t: 'Conso./mois', right: 1 }, { t: 'Autonomie', right: 1 }],
+        shown.map(function(x) {
+          const col = x.level === 'rupture' ? 'var(--danger)' : x.level === 'low' ? 'var(--warning,#BA7517)' : 'var(--text2)';
+          return '<tr><td>' + statsDot(x.color_hex) + escHtml(x.material + ' · ' + x.color_name) + '</td>' +
+            '<td' + STATS_R + '>' + x.spools + '</td>' +
+            '<td' + STATS_R + '>' + statsG(x.grams) + '</td>' +
+            '<td' + STATS_R + '>' + statsG(x.rate_month) + '</td>' +
+            '<td style="text-align:right;white-space:nowrap;font-weight:500;color:' + col + '">' + statsDaysLeft(x.days_left, x.level) +
+              (x.level !== 'ok' ? ' ⚠' : '') + '</td></tr>';
+        }), 'stats-scroll') +
+      '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Autonomie = stock ÷ consommation moyenne des ' + au.window_days +
+        ' derniers jours. Alerte sous ' + au.alert_days + ' jours (réglable dans Paramètres › Interface). Les couleurs consommées de moins de ' +
+        au.min_rate_month + ' g/mois ne sont pas jugées' + (au.items.length > shown.length ? ' · ' + (au.items.length - shown.length) + ' autres non affichées' : '') + '.</div></div>';
+  }
+
+  // ── Consommation mensuelle (graphique) ─────────────────
+  const mo = d.monthly;
+  let monthCard = '';
+  if (mo && mo.months.length && mo.total.some(function(v) { return v > 0; })) {
+    monthCard = '<div class="card"><div class="card-header"><span class="card-title">Consommation mensuelle</span>' +
+      '<span style="color:var(--text3);font-size:12px">7 derniers jours : ' + statsG(co.last_7d_g) + ' · mois en cours : ' + statsG(co.this_month_g) + '</span></div>' +
+      '<div style="position:relative;height:240px"><canvas id="stats-monthly-chart"></canvas></div>' +
+      '<div id="stats-monthly-fallback"></div>' +
+      '<div class="metric-sub" style="margin-top:8px">Mois civils, le dernier est partiel. Estimation d’après les pesées.</div></div>';
+  }
 
   // ── Stock par matière ──────────────────────────────────
   const maxMat = Math.max.apply(null, st.by_material.map(function(m) { return m.grams; }).concat([1]));
@@ -201,9 +282,17 @@ async function renderStats(months) {
     '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Bobines entamées (hors bobines neuves) sans baisse de poids mesurée ' +
       statsPeriodLabel(months_) + '. Une bobine peu pesée peut apparaître ici alors qu’elle sert : une pesée récente la fait sortir de la liste.</div></div>';
 
-  content.innerHTML = metrics +
+  content.innerHTML = metrics + autoCard + monthCard +
     '<div class="stats-cols">' +
       '<div class="stats-col">' + matCard + consCard + freshCard + '</div>' +
       '<div class="stats-col">' + colorCard + dormCard + '</div>' +
     '</div>';
+
+  if (monthCard && !statsDrawChart(mo)) {
+    // Chart.js indisponible (hors ligne, CDN non mis en cache) : tableau de repli
+    document.getElementById('stats-monthly-chart').parentNode.style.display = 'none';
+    document.getElementById('stats-monthly-fallback').innerHTML = statsTable(
+      [{ t: 'Mois' }, { t: 'Consommé', right: 1 }],
+      mo.months.map(function(k, i) { return '<tr><td>' + statsMonthLabel(k) + '</td><td' + STATS_R + '>' + statsG(mo.total[i]) + '</td></tr>'; }));
+  }
 }

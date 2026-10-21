@@ -31,6 +31,8 @@ router.put('/', async (req, res) => {
       smtp_user:          'Email SMTP',
       smtp_password:      'Mot de passe SMTP',
       report_email:       'Email rapport',
+      weekly_report_enabled: 'Rapport hebdomadaire',
+      autonomy_alert_days:   'Seuil autonomie (jours)',
       auth_enabled:       'Authentification',
       auth_password:      'Mot de passe app',
       tigertag_webhook_token: 'Jeton webhook balance',
@@ -58,6 +60,10 @@ router.put('/', async (req, res) => {
         const val   = sensitiveKeys.includes(k) ? '(modifié)' : String(v);
         changed.push(label + ' → ' + val);
       }
+    }
+    // Le rapport hebdomadaire se replanifie dès qu'un de ses réglages change
+    if (entries.some(([k]) => k.startsWith('weekly_report_') && !['weekly_report_last_sent', 'weekly_report_last_status'].includes(k))) {
+      require('../weekly-report').schedule().catch(() => {});
     }
     if (changed.length > 0) {
       await logAction('settings', 0, 'update', 'Paramètres modifiés : ' + changed.join(', '));

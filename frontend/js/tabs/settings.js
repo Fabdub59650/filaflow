@@ -137,6 +137,12 @@ async function renderSettings() {
                  style="width:70px" onchange="saveSettings()">
           <span style="font-size:13px;color:var(--text3)">% restant</span>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;padding-left:4px;flex-wrap:wrap">
+          <label style="font-size:13px;color:var(--text2)" for="set-autonomy-days">Alerte « à racheter » sous</label>
+          <input id="set-autonomy-days" type="number" min="7" max="365" step="1"
+                 value="${settings.autonomy_alert_days||30}" style="width:80px" onchange="saveSettings()">
+          <span style="font-size:13px;color:var(--text3)">jours d'autonomie (onglet Stats et rapport hebdomadaire)</span>
+        </div>
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
           <div>
             <div style="font-size:13px">Inventaire des bobines</div>
@@ -409,6 +415,70 @@ async function renderSettings() {
       </div>
     </div>
 
+    <!-- ── Rapport hebdomadaire par email ───────────── -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Rapport hebdomadaire par email</span></div>
+      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px">Envoyer un rapport chaque semaine</div>
+          <div style="font-size:11px;color:var(--text3)">Utilise le serveur SMTP et le destinataire de Sauvegarde automatique › Rapport par email</div>
+        </div>
+        <div onclick="toggleSetting('weekly_report_enabled', this); setTimeout(weeklyReportToggled, 0)" id="toggle-weekly-report"
+             data-enabled="${settings.weekly_report_enabled==='true'?'1':'0'}"
+             style="width:40px;height:22px;border-radius:11px;cursor:pointer;transition:background 0.2s;
+                    background:${settings.weekly_report_enabled==='true'?'var(--accent)':'var(--border2)'};position:relative;flex-shrink:0">
+          <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;
+                      top:2px;transition:left 0.2s;left:${settings.weekly_report_enabled==='true'?'19px':'2px'}"></div>
+        </div>
+      </label>
+      <div id="weekly-report-config" style="display:${settings.weekly_report_enabled==='true'?'block':'none'}">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <label style="font-size:13px;color:var(--text2)" for="wr-day">Envoi le</label>
+          <select id="wr-day" onchange="saveWeeklyReport()" style="width:auto"><option value="0" ${(settings.weekly_report_day||'1')==='0'?'selected':''}>dimanche</option><option value="1" ${(settings.weekly_report_day||'1')==='1'?'selected':''}>lundi</option><option value="2" ${(settings.weekly_report_day||'1')==='2'?'selected':''}>mardi</option><option value="3" ${(settings.weekly_report_day||'1')==='3'?'selected':''}>mercredi</option><option value="4" ${(settings.weekly_report_day||'1')==='4'?'selected':''}>jeudi</option><option value="5" ${(settings.weekly_report_day||'1')==='5'?'selected':''}>vendredi</option><option value="6" ${(settings.weekly_report_day||'1')==='6'?'selected':''}>samedi</option></select>
+          <label style="font-size:13px;color:var(--text2)" for="wr-hour">à</label>
+          <select id="wr-hour" onchange="saveWeeklyReport()" style="width:auto">${Array.from({length:24},function(_,h){var cur=parseInt(settings.weekly_report_hour,10);if(isNaN(cur))cur=8;return '<option value="'+h+'"'+(cur===h?' selected':'')+'>'+String(h).padStart(2,'0')+' h</option>';}).join('')}</select>
+        </div>
+        <div style="font-size:12px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Contenu du rapport</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:12px">
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="wr-section" data-key="stock" ${settings.weekly_report_s_stock!=='false'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+            <span>Résumé du stock<span style="display:block;font-size:11px;color:var(--text3)">Bobines, quantité et valeur par matière</span></span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="wr-section" data-key="consumption" ${settings.weekly_report_s_consumption!=='false'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+            <span>Consommation<span style="display:block;font-size:11px;color:var(--text3)">7 jours, mois en cours et 3 derniers mois</span></span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="wr-section" data-key="autonomy" ${settings.weekly_report_s_autonomy!=='false'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+            <span>À racheter<span style="display:block;font-size:11px;color:var(--text3)">Couleurs dont l’autonomie est courte (alerte)</span></span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="wr-section" data-key="low" ${settings.weekly_report_s_low!=='false'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+            <span>Bobines presque vides<span style="display:block;font-size:11px;color:var(--text3)">Sous le seuil d’alerte stock (alerte)</span></span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="wr-section" data-key="dormant" ${settings.weekly_report_s_dormant!=='false'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+            <span>Bobines dormantes<span style="display:block;font-size:11px;color:var(--text3)">Entamées sans baisse de poids depuis 3 mois</span></span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="wr-section" data-key="fresh" ${settings.weekly_report_s_fresh!=='false'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+            <span>Pesées à refaire<span style="display:block;font-size:11px;color:var(--text3)">Pesées anciennes ou jamais faites (alerte)</span></span>
+          </label>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;margin-bottom:12px">
+          <input type="checkbox" id="wr-skip-empty" ${settings.weekly_report_skip_empty==='true'?'checked':''} style="margin:3px 0 0;width:14px;height:14px" onchange="saveWeeklyReport()">
+          <span>N'envoyer que s'il y a quelque chose à signaler
+            <span style="display:block;font-size:11px;color:var(--text3)">Aucun mail si les sections « alerte » cochées sont vides</span></span>
+        </label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-sm" onclick="previewWeeklyReport()">Aperçu</button>
+          <button class="btn btn-sm" onclick="sendWeeklyReportNow()" id="btn-wr-send">Envoyer maintenant</button>
+          <span id="wr-result" style="font-size:12px"></span>
+        </div>
+        <div id="wr-status" style="margin-top:10px;font-size:12px;color:var(--text3)"></div>
+      </div>
+    </div>
+
     <!-- ── Export complet ────────────────────────────── -->
     <div class="card">
       <div class="card-header"><span class="card-title">Export complet</span></div>
@@ -448,6 +518,7 @@ async function renderSettings() {
 `;
 
       loadBackupStatus();
+      if (settings.weekly_report_enabled === 'true') loadWeeklyStatus();
       break;
 
     case 'integrations':
@@ -648,6 +719,7 @@ async function saveSettings() {
     show_locations:        togLocs     ? String(togLocs.dataset.enabled     === '1') : 'true',
     stock_alert_enabled:        document.getElementById('toggle-stock-alert')?.dataset.enabled === '1' ? 'true' : 'false',
     stock_alert_threshold:      document.getElementById('set-stock-threshold')?.value || '20',
+    autonomy_alert_days:        String(Math.min(365, Math.max(7, parseInt(document.getElementById('set-autonomy-days')?.value, 10) || 30))),
     inventory_enabled:          document.getElementById('toggle-inventory')?.dataset.enabled === '0' ? 'false' : 'true',
     inventory_days:             String(Math.max(7, parseInt(document.getElementById('set-inventory-days')?.value, 10) || 90)),
     inventory_tolerance:        (function(v) { return isNaN(v) ? '10' : String(Math.max(0, v)); })(parseInt(document.getElementById('set-inventory-tolerance')?.value, 10)),
@@ -663,6 +735,73 @@ async function saveSettings() {
     window._stockAlertEnabled   = body.stock_alert_enabled === 'true';
     window._stockAlertThreshold = parseInt(body.stock_alert_threshold) || 20;
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Rapport hebdomadaire ─────────────────────────────────
+function weeklyReportToggled() {
+  const on = document.getElementById('toggle-weekly-report')?.dataset.enabled === '1';
+  const cfg = document.getElementById('weekly-report-config');
+  if (cfg) cfg.style.display = on ? 'block' : 'none';
+  if (on) loadWeeklyStatus();
+}
+
+async function loadWeeklyStatus() {
+  const el = document.getElementById('wr-status');
+  if (!el) return;
+  try {
+    const st = await API.get('/report/weekly/status');
+    const when = function(iso) { return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }); };
+    let html = '';
+    if (!st.smtp_ready) html += '<div style="color:var(--danger);margin-bottom:4px">Serveur SMTP ou destinataire non configuré (Sauvegarde automatique › Rapport par email).</div>';
+    else html += '<div>Destinataire : ' + escHtml(st.to) + '</div>';
+    if (st.next) html += '<div>Prochain envoi : ' + when(st.next) + '</div>';
+    if (st.last_sent) html += '<div>Dernier passage : ' + when(st.last_sent) + ' — ' + escHtml(st.last_status || '') + '</div>';
+    else if (st.last_status) html += '<div>' + escHtml(st.last_status) + '</div>';
+    el.innerHTML = html;
+  } catch (e) { el.textContent = e.message; }
+}
+
+async function saveWeeklyReport() {
+  const body = {
+    weekly_report_day:        document.getElementById('wr-day')?.value || '1',
+    weekly_report_hour:       document.getElementById('wr-hour')?.value || '8',
+    weekly_report_skip_empty: String(!!document.getElementById('wr-skip-empty')?.checked),
+  };
+  document.querySelectorAll('.wr-section').forEach(function(c) { body['weekly_report_s_' + c.dataset.key] = String(c.checked); });
+  try {
+    await API.put('/settings', body);
+    toast('Rapport hebdomadaire enregistré', 'success');
+    loadWeeklyStatus();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function previewWeeklyReport() {
+  const out = document.getElementById('wr-result');
+  try {
+    const r = await API.get('/report/weekly/preview');
+    const old = document.getElementById('wr-preview'); if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'wr-preview';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:10px;width:min(720px,100%);height:min(85vh,900px);display:flex;flex-direction:column;overflow:hidden">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #e5e7eb;color:#111;font-size:13px">' +
+      '<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(r.subject) + '</b>' +
+      '<button class="btn btn-sm" onclick="document.getElementById(\'wr-preview\').remove()">Fermer</button></div>' +
+      '<iframe style="flex:1;border:0" sandbox></iframe></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('iframe').srcdoc = r.html;
+  } catch (e) { if (out) { out.style.color = 'var(--danger)'; out.textContent = e.message; } }
+}
+
+async function sendWeeklyReportNow() {
+  const btn = document.getElementById('btn-wr-send'), out = document.getElementById('wr-result');
+  btn.disabled = true; out.style.color = 'var(--text3)'; out.textContent = 'Envoi…';
+  try {
+    const r = await API.post('/report/weekly/send', {});
+    out.style.color = 'var(--success)'; out.textContent = 'Envoyé à ' + r.to;
+  } catch (e) { out.style.color = 'var(--danger)'; out.textContent = e.message; }
+  btn.disabled = false;
 }
 
 // ── Backup ───────────────────────────────────────────────

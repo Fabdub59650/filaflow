@@ -1,5 +1,14 @@
 # Changelog — FilaFlow
 
+## 1.12.0 — octobre 2026 — consommation mensuelle, autonomie par couleur, rapport hebdomadaire
+
+- Onglet Stats : graphique de consommation mensuelle (barres empilées par matière, mois civils, le dernier étant partiel ; suit le sélecteur de période) ; tableau de repli si Chart.js n'est pas disponible
+- Onglet Stats : carte « Autonomie par couleur » = stock ÷ consommation moyenne des 90 derniers jours (fenêtre réduite si le suivi est récent), avec alerte « à racheter » sous un seuil réglable ; les couleurs consommées de moins de 30 g/mois ne sont pas jugées
+- Paramètres › Interface : seuil d'alerte d'autonomie en jours (30 par défaut)
+- Paramètres › Données : nouveau rapport hebdomadaire par e-mail, désactivé par défaut. Jour et heure d'envoi, contenu au choix (résumé du stock, consommation, à racheter, bobines presque vides, bobines dormantes, pesées à refaire), option « n'envoyer que s'il y a quelque chose à signaler », aperçu, envoi immédiat et état du dernier envoi. Il réutilise le serveur SMTP et le destinataire du rapport de sauvegarde
+- Pas de rattrapage si le Raspberry Pi était éteint à l'heure prévue
+- API : `GET /api/report/weekly/status|preview`, `POST /api/report/weekly/send` ; `GET /api/stats` expose `monthly`, `autonomy`, `low_stock`
+
 ## 1.11.4 — octobre 2026 — n° de bobine dans les vignettes de lecture
 
 - La vignette qui apparaît en bas de page à la lecture d'une puce NFC affiche le n° de bobine entre

@@ -1,5 +1,5 @@
 /**
- * mailer.js — Envoi du rapport de sauvegarde par email (SMTP via nodemailer)
+ * mailer.js — Envoi des rapports par email (sauvegarde, hebdomadaire) via SMTP (nodemailer)
  *
  * Réglages (table settings) : smtp_host, smtp_port, smtp_secure, smtp_user,
  * smtp_password (chiffré AES-256-GCM), smtp_from, report_email (destinataire).
@@ -139,4 +139,4 @@ async function sendTestMail(override) {
   return cfg.to;
 }
 
-module.exports = { getSmtpConfig, sendBackupReport, sendTestMail };
+module.exports = { getSmtpConfig, sendMail, esc, sendBackupReport, sendTestMail };
