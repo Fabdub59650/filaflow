@@ -20,6 +20,11 @@
  *    des 90 derniers jours (ou depuis le début du suivi s'il est plus récent, 30 jours au minimum). Une couleur
  *    consommée mais sans bobine active est en rupture. Sous le seuil d'alerte (jours), la couleur est « à racheter » ;
  *    les couleurs consommées de moins de 30 g/mois ne sont pas jugées (trop peu de signal).
+ *  - Prix : historique d'achat déduit des bobines (archivées comprises), sans table supplémentaire. Le prix saisi sur
+ *    une fiche est celui de la bobine (prix ÷ poids total = prix au gramme, comme pour la valeur du stock et PrepFlow) ;
+ *    il est ramené en €/kg pour comparer des bobines de poids différents. Les bobines partielles (restes d'une bobine
+ *    principale) sont exclues : elles dupliqueraient l'achat. Date d'achat = purchase_date, à défaut date de création.
+ *    Moyenne « pondérée » = dépense totale ÷ kilos achetés. Tendance ↑/↓ : dernier prix à plus de 5 % de la moyenne.
  */
 const router = require('express').Router();
 const db = require('../db');
@@ -31,6 +36,7 @@ const num = v => {
   return Number.isFinite(n) ? n : null;
 };
 const round1 = n => Math.round(n * 10) / 10;
+const round2 = n => (n === null || n === undefined ? null : Math.round(n * 100) / 100);
 const DAY = 86400000;
 const RATE_WINDOW_DAYS = 90;        // fenêtre de la consommation moyenne pour l'autonomie
 const RATE_MIN_WINDOW_DAYS = 30;
@@ -41,6 +47,93 @@ const ym = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'
 function valueOf(grams, price, total) {
   if (!price || price <= 0 || !total || total <= 0 || !grams) return 0;
   return grams * price / total;
+}
+
+const PRICE_TREND_PCT = 5;          // écart (%) du dernier prix à la moyenne pour afficher une tendance
+const PRICE_MAX_MONTHS = 24;
+
+/** Historique des prix d'achat (voir l'en-tête). Calcul pur. */
+function computePrices(filaments, opts) {
+  const now = new Date(opts.now || Date.now());
+  const purchases = [];
+  let withoutPrice = 0;
+  for (const f of filaments) {
+    if (f.parent_filament_id) continue;                  // reste d'une bobine : pas un achat
+    const price = num(f.price), total = num(f.weight_total);
+    if (!price || price <= 0 || !total || total <= 0) { if (!f.archived) withoutPrice++; continue; }
+    const at = toDate(f.purchase_date) || toDate(f.created_at);
+    purchases.push({
+      material: f.material || 'autre', color_name: f.color_name || '—', color_hex: f.color_hex,
+      supplier: (f.supplier || '').trim() || null, price, kg: total / 1000, eur_kg: price / (total / 1000),
+      at, date: at ? at.toISOString().slice(0, 10) : null, spool_number: f.spool_number || null,
+    });
+  }
+
+  const agg = list => {
+    const spend = list.reduce((a, p) => a + p.price, 0), kg = list.reduce((a, p) => a + p.kg, 0);
+    const dated = list.filter(p => p.at).sort((a, b) => b.at - a.at);
+    const last = dated[0] || list[0];
+    const weighted = kg ? spend / kg : null;
+    let trend = null;
+    if (list.length >= 2 && weighted) {
+      const d = (last.eur_kg - weighted) / weighted * 100;
+      if (d > PRICE_TREND_PCT) trend = 'up'; else if (d < -PRICE_TREND_PCT) trend = 'down';
+    }
+    return {
+      count: list.length, spend: round1(spend), kg: round1(kg),
+      weighted: round2(weighted), min: round2(Math.min(...list.map(p => p.eur_kg))), max: round2(Math.max(...list.map(p => p.eur_kg))),
+      last: { eur_kg: round2(last.eur_kg), price: round2(last.price), date: last.date, supplier: last.supplier },
+      trend,
+    };
+  };
+  const group = keyFn => {
+    const m = new Map();
+    for (const p of purchases) { const k = keyFn(p); if (!m.has(k)) m.set(k, []); m.get(k).push(p); }
+    return m;
+  };
+
+  const byMaterial = [...group(p => p.material).entries()].map(([material, l]) => ({ material, ...agg(l) }))
+    .sort((a, b) => b.spend - a.spend);
+  const byColor = [...group(p => p.material + '|' + p.color_name).entries()].map(([k, l]) => {
+    const [material, color_name] = k.split('|');
+    return { material, color_name, color_hex: l[0].color_hex, ...agg(l) };
+  }).sort((a, b) => a.material.localeCompare(b.material) || b.spend - a.spend);
+  const suppliers = [...group(p => p.material + '|' + (p.supplier || '')).entries()].map(([k, l]) => {
+    const [material, supplier] = k.split('|');
+    const a = agg(l);
+    return { material, supplier: supplier || null, count: a.count, weighted: a.weighted, kg: a.kg };
+  }).sort((a, b) => a.material.localeCompare(b.material) || (a.weighted - b.weighted));
+
+  // Courbe : prix moyen pondéré par mois et par matière (null = aucun achat ce mois-là)
+  const dates = purchases.filter(p => p.at).map(p => p.at);
+  let monthly = { months: [], by_material: [] };
+  if (dates.length) {
+    const first = new Date(Math.min(...dates));
+    let start = new Date(first.getFullYear(), first.getMonth(), 1);
+    const floor = new Date(now.getFullYear(), now.getMonth() - (PRICE_MAX_MONTHS - 1), 1);
+    if (start < floor) start = floor;
+    const list = [];
+    for (let d = new Date(start); d <= now; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) list.push(ym(d));
+    const mats = [...new Set(purchases.map(p => p.material))];
+    monthly = {
+      months: list,
+      by_material: mats.map(material => ({
+        material,
+        eur_kg: list.map(k => {
+          const l = purchases.filter(p => p.material === material && p.at && ym(p.at) === k);
+          const kg = l.reduce((a, p) => a + p.kg, 0);
+          return kg ? round2(l.reduce((a, p) => a + p.price, 0) / kg) : null;
+        }),
+        purchases: list.map(k => purchases.filter(p => p.material === material && p.at && ym(p.at) === k).length),
+      })).filter(m => m.eur_kg.filter(v => v !== null).length >= 1),
+    };
+  }
+
+  return {
+    purchases: purchases.length, without_price: withoutPrice,
+    trend_pct: PRICE_TREND_PCT,
+    by_material: byMaterial, by_color: byColor, suppliers, monthly,
+  };
 }
 
 /**
@@ -298,6 +391,7 @@ function computeStats(filaments, weighings, opts) {
       items: autonomy, to_buy: autonomy.filter(a => a.level !== 'ok') },
     low_stock: { threshold: opts.lowPct || null, items: lowItems },
     dormant: { count: dormant.length, value: round1(dormantValue), items: dormant },
+    prices: computePrices(filaments, opts),
   };
 }
 
@@ -305,7 +399,8 @@ function computeStats(filaments, weighings, opts) {
 async function loadStats(months) {
   const [filaments] = await db.query(
     `SELECT id, name, material, color_name, color_hex, price, weight_total, weight_remaining,
-            spool_number, location, archived, inventory_checked_at
+            spool_number, location, archived, inventory_checked_at,
+            supplier, purchase_date, created_at, parent_filament_id
      FROM filaments`);
   const [weighings] = await db.query(
     `SELECT id, filament_id, previous_weight, net_weight, created_at FROM filament_weighings WHERE flag IS NULL`);
@@ -328,5 +423,6 @@ router.get('/', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.computePrices = computePrices;
 module.exports.computeStats = computeStats;
 module.exports.loadStats = loadStats;

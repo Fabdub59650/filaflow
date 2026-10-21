@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.14.0 — octobre 2026 — historique des prix
+
+- Nouveau sous-onglet **Prix** dans Stats (masqué si « Gestion des prix » est désactivée) : courbe du prix au kilo par mois et par matière, tableau par matière et par couleur (dernier prix, prix moyen pondéré, min – max, nombre d'achats, date du dernier achat, flèche ↑ ou ↓ quand le dernier prix s'écarte de plus de 5 % de la moyenne) et comparaison des fournisseurs pour les matières achetées chez plusieurs d'entre eux
+- L'historique est déduit des bobines existantes, archivées comprises, avec leur date d'achat (à défaut leur date de création) : aucune saisie supplémentaire, aucun changement de base. Les restes de bobines sont exclus pour ne pas compter deux fois un achat
+- Création d'une bobine : le champ Prix est prérempli avec le dernier prix payé pour la même matière et la même couleur, avec la mention « Dernier prix payé : … » ; il suit le poids total tant qu'il n'a pas été modifié à la main, et ne s'applique ni à une fiche existante ni à un reste de bobine
+- Le champ s'intitule désormais « Prix de la bobine (€) » : c'est bien le prix de la bobine, ramené au gramme pour la valeur du stock, les coûts et PrepFlow ; l'ancien libellé « €/kg » prêtait à confusion pour les bobines qui ne pèsent pas 1 kg
+- API : `GET /api/stats` expose `prices` (dont `weighted` par couleur) ; `GET /api/filaments/last-price?material=&color_name=`
+
 ## 1.13.1 — octobre 2026 — mise à niveau de la base au démarrage
 
 - Correctif : si `sql/schema.sql` n'est pas rejoué lors d'une mise à jour (`scripts/patch.sh` non lancé), la colonne `filament_weighings.flag` manquait et les Stats, l'Inventaire et les pesées échouaient. Le service applique désormais au démarrage les ajouts de colonnes idempotents (nouveau `backend/migrations.js`)

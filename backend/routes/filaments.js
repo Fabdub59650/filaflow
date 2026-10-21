@@ -12,6 +12,26 @@ router.get('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Dernier prix payé pour une matière + couleur (bobines archivées comprises, restes exclus) :
+// sert au préremplissage du prix à la création d'une bobine.
+router.get('/last-price', async (req, res) => {
+  try {
+    const material = String(req.query.material || '').trim();
+    const color    = String(req.query.color_name || '').trim();
+    if (!material || !color) return res.json(null);
+    const [[r]] = await db.query(
+      `SELECT price, weight_total, supplier, COALESCE(purchase_date, DATE(created_at)) AS bought_at
+       FROM filaments
+       WHERE parent_filament_id IS NULL AND price > 0 AND weight_total > 0
+         AND LOWER(TRIM(material)) = LOWER(?) AND LOWER(TRIM(color_name)) = LOWER(?)
+       ORDER BY COALESCE(purchase_date, DATE(created_at)) DESC, id DESC LIMIT 1`, [material, color]);
+    if (!r) return res.json(null);
+    const price = parseFloat(r.price), total = parseFloat(r.weight_total);
+    res.json({ price, weight_total: total, eur_kg: Math.round(price / (total / 1000) * 100) / 100,
+               supplier: r.supplier || null, date: r.bought_at ? String(r.bought_at).slice(0, 10) : null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM filaments WHERE id=?', [req.params.id]);

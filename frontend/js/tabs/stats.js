@@ -1,10 +1,12 @@
 // ── Onglet Stats ────────────────────────────────────────────────────────
 // Stock (poids, valeur), fraîcheur des pesées, consommation estimée, bobines dormantes.
 // Tout est calculé côté serveur : backend/routes/stats.js (voir son en-tête pour les règles).
-// Quatre sous-onglets : Aperçu (indicateurs, À surveiller, graphique), Stock, Consommation (+ autonomie), Suivi (pesées, dormantes).
+// Sous-onglets : Aperçu (indicateurs, À surveiller, graphique), Stock, Consommation (+ autonomie), Suivi (pesées, dormantes),
+// Prix (historique d'achat, si la gestion des prix est activée).
 // Tableaux et barres CSS ; un seul graphique (consommation mensuelle, Chart.js) avec repli en tableau.
 
 let _statsChart = null;
+let _statsPriceChart = null;
 let _statsTab = 'apercu';   // sous-onglet : apercu | stock | conso | suivi
 let _statsData = null;      // dernières données (changer de sous-onglet ne recharge pas)
 let _statsCards = null;
@@ -14,7 +16,9 @@ const STATS_TABS = [
   { id: 'stock',  label: 'Stock' },
   { id: 'conso',  label: 'Consommation' },
   { id: 'suivi',  label: 'Suivi' },
+  { id: 'prix',   label: 'Prix', needsPrices: true },   // masqué si « Gestion des prix » est désactivée
 ];
+const statsTabs = function() { return STATS_TABS.filter(function(t) { return !t.needsPrices || window._showPrices !== false; }); };
 let _statsMonths = '6';   // période : 3 | 6 | 12 | 0 (tout)
 
 // Groupes de couleurs dépliés (conservés d'un rafraîchissement à l'autre)
@@ -108,6 +112,117 @@ function statsDrawChart(m) {
     },
   });
   return true;
+}
+
+function statsEurKg(n) {
+  return (n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/kg';
+}
+function statsTrend(t) {
+  if (t === 'up')   return ' <span title="Dernier prix au-dessus de la moyenne" style="color:var(--danger)">↑</span>';
+  if (t === 'down') return ' <span title="Dernier prix sous la moyenne" style="color:var(--success)">↓</span>';
+  return '';
+}
+function statsShortDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d) ? '—' : d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+}
+
+// Courbe du prix au kilo par mois et par matière (mois sans achat : trou relié par une ligne)
+function statsDrawPriceChart(m) {
+  if (_statsPriceChart) { _statsPriceChart.destroy(); _statsPriceChart = null; }
+  const cv = document.getElementById('stats-price-chart');
+  if (!cv || typeof Chart === 'undefined') return false;
+  const cs = getComputedStyle(document.documentElement);
+  const tick = (cs.getPropertyValue('--text3') || '#888').trim();
+  const grid = (cs.getPropertyValue('--border') || '#ddd').trim();
+  _statsPriceChart = new Chart(cv, {
+    type: 'line',
+    data: {
+      labels: m.months.map(statsMonthLabel),
+      datasets: m.by_material.map(function(x, i) {
+        const c = STATS_MAT_COLORS[i % STATS_MAT_COLORS.length];
+        return { label: x.material, data: x.eur_kg, borderColor: c, backgroundColor: c, spanGaps: true, tension: 0.15, pointRadius: 4, borderWidth: 2 };
+      }),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, color: tick, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(c) { return c.dataset.label + ' : ' + statsEurKg(c.parsed.y); } } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: tick, font: { size: 11 }, maxRotation: 0, autoSkip: true } },
+        y: { grid: { color: grid }, ticks: { color: tick, font: { size: 11 }, callback: function(v) { return v + ' €'; } } },
+      },
+    },
+  });
+  return true;
+}
+
+// Carte(s) de l'onglet Prix
+function statsPriceCards(pr) {
+  if (!pr.purchases) {
+    return '<div class="card"><div class="empty-state"><p>Aucun prix renseigné : saisissez le prix de vos bobines (et leur date d’achat) pour suivre l’évolution.</p></div></div>';
+  }
+  const m = pr.monthly;
+  const points = m.by_material.reduce(function(n, x) { return n + x.eur_kg.filter(function(v) { return v !== null; }).length; }, 0);
+  const chart = (m.months.length >= 2 && points >= 2)
+    ? '<div class="card"><div class="card-header"><span class="card-title">Prix au kilo par mois</span>' +
+      '<span style="color:var(--text3);font-size:12px">moyenne des achats du mois, par matière</span></div>' +
+      '<div style="position:relative;height:240px"><canvas id="stats-price-chart"></canvas></div>' +
+      '<div id="stats-price-fallback"></div></div>'
+    : '';
+
+  const colorsByMat = {};
+  pr.by_color.forEach(function(c) { (colorsByMat[c.material] = colorsByMat[c.material] || []).push(c); });
+  const groups = pr.by_material.map(function(mat) {
+    const list = colorsByMat[mat.material] || [];
+    const rows = list.map(function(c) {
+      return '<tr><td>' + statsDot(c.color_hex) + escHtml(c.color_name) + '</td>' +
+        '<td' + STATS_R + '>' + c.count + '</td>' +
+        '<td' + STATS_R + '>' + statsEurKg(c.last.eur_kg) + statsTrend(c.trend) + '</td>' +
+        '<td' + STATS_R + '>' + statsEurKg(c.weighted) + '</td>' +
+        '<td' + STATS_R + '>' + (c.count > 1 && c.min !== c.max ? statsEurKg(c.min) + ' – ' + statsEurKg(c.max) : '—') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap;color:var(--text3)">' + statsShortDate(c.last.date) + '</td></tr>';
+    });
+    return '<details class="stats-group" data-mat="prix-' + escHtml(mat.material) + '"' +
+        (_statsOpenMats.has('prix-' + mat.material) ? ' open' : '') + ' ontoggle="statsToggle(this)">' +
+      '<summary><span class="stats-group-name">' + escHtml(mat.material) + '</span>' +
+        '<span class="stats-group-info">' + mat.count + ' achat' + (mat.count > 1 ? 's' : '') + ' · moyenne ' + statsEurKg(mat.weighted) +
+        ' · dernier ' + statsEurKg(mat.last.eur_kg) + statsTrend(mat.trend) + ' · ' + statsEur(mat.spend) + ' dépensés</span></summary>' +
+      statsTable([{ t: 'Couleur' }, { t: 'Achats', right: 1 }, { t: 'Dernier prix', right: 1 }, { t: 'Moyenne', right: 1 }, { t: 'Min – max', right: 1 }, { t: 'Dernier achat', right: 1 }], rows) +
+    '</details>';
+  }).join('');
+  const byMat = '<div class="card"><div class="card-header"><span class="card-title">Prix par matière et par couleur</span>' +
+    '<span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="statsToggleAll(true)">Tout déplier</button>' +
+    '<button class="btn btn-sm" onclick="statsToggleAll(false)">Tout replier</button></span></div>' +
+    '<div class="stats-scroll">' + groups + '</div>' +
+    '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Prix ramenés au kilo (prix de la bobine ÷ son poids), restes de bobines exclus. ' +
+      'Moyenne pondérée par les kilos achetés ; ↑ ou ↓ : dernier prix à plus de ' + pr.trend_pct + ' % de la moyenne. ' +
+      (pr.without_price ? pr.without_price + ' bobine' + (pr.without_price > 1 ? 's' : '') + ' active' + (pr.without_price > 1 ? 's' : '') + ' sans prix, non comptée' + (pr.without_price > 1 ? 's' : '') + '.' : '') +
+    '</div></div>';
+
+  // Fournisseurs : seulement quand une matière a été achetée chez au moins deux fournisseurs (sinon rien à comparer)
+  const supByMat = {};
+  pr.suppliers.forEach(function(x) { (supByMat[x.material] = supByMat[x.material] || []).push(x); });
+  const comparable = Object.keys(supByMat).filter(function(k) { return supByMat[k].length >= 2; });
+  let supCard = '';
+  if (comparable.length) {
+    const rows = [];
+    comparable.forEach(function(k) {
+      const best = supByMat[k][0].weighted;
+      supByMat[k].forEach(function(x, i) {
+        rows.push('<tr><td>' + (i === 0 ? escHtml(k) : '') + '</td><td>' + (x.supplier ? escHtml(x.supplier) : '<span style="color:var(--text3)">non renseigné</span>') + '</td>' +
+          '<td' + STATS_R + '>' + x.count + '</td><td' + STATS_R + '>' + statsEurKg(x.weighted) +
+          (i === 0 ? ' <span style="color:var(--success)">✓</span>' : ' <span style="color:var(--text3)">+' + Math.round((x.weighted / best - 1) * 100) + ' %</span>') + '</td></tr>');
+      });
+    });
+    supCard = '<div class="card"><div class="card-header"><span class="card-title">Fournisseurs</span></div>' +
+      statsTable([{ t: 'Matière' }, { t: 'Fournisseur' }, { t: 'Achats', right: 1 }, { t: 'Prix moyen', right: 1 }], rows) +
+      '<div class="metric-sub" style="margin-top:10px">Matières achetées chez plusieurs fournisseurs, du moins cher au plus cher.</div></div>';
+  }
+  return chart + byMat + supCard;
 }
 
 async function renderStats(months) {
@@ -320,9 +435,11 @@ async function renderStats(months) {
         '<button class="btn btn-sm" onclick="statsSwitch(\'' + w.tab + '\')">Détail</button></div>';
     }).join('') : '<div style="color:var(--success);font-size:13px">Rien à signaler.</div>') + '</div>';
 
+  const priceCards = (window._showPrices !== false && d.prices) ? statsPriceCards(d.prices) : '';
+
   _statsCards = {
     metrics: metrics, watch: watchCard, month: monthCard, auto: autoCard,
-    mat: matCard, color: colorCard, cons: consCard, fresh: freshCard, dorm: dormCard,
+    mat: matCard, color: colorCard, cons: consCard, fresh: freshCard, dorm: dormCard, price: priceCards,
   };
   _statsData = d;
   statsShow();
@@ -338,10 +455,10 @@ function statsSwitch(tab) {
 function statsShow() {
   const c = _statsCards, content = document.getElementById('content');
   if (!c) return;
-  if (!STATS_TABS.some(function(t) { return t.id === _statsTab; })) _statsTab = 'apercu';
+  if (!statsTabs().some(function(t) { return t.id === _statsTab; })) _statsTab = 'apercu';
 
   const bar = '<div style="display:flex;border-bottom:2px solid var(--border2);margin-bottom:20px;flex-wrap:wrap">' +
-    STATS_TABS.map(function(t) {
+    statsTabs().map(function(t) {
       const a = t.id === _statsTab;
       return '<button onclick="statsSwitch(\'' + t.id + '\')" style="padding:8px 16px;font-size:13px;font-weight:' + (a ? '600' : '400') +
         ';border:none;cursor:pointer;background:transparent;color:' + (a ? 'var(--accent)' : 'var(--text2)') +
@@ -351,14 +468,15 @@ function statsShow() {
   let body;
   if (_statsTab === 'stock')      body = '<div class="stats-cols"><div class="stats-col">' + c.mat + '</div><div class="stats-col">' + c.color + '</div></div>';
   else if (_statsTab === 'conso') body = c.cons + c.auto;
+  else if (_statsTab === 'prix')  body = c.price;
   else if (_statsTab === 'suivi') body = '<div class="stats-cols"><div class="stats-col">' + c.fresh + '</div><div class="stats-col">' + c.dorm + '</div></div>';
   else                            body = c.watch + c.month;
 
   content.innerHTML = c.metrics + bar + body;
 
-  // La période ne joue pas sur l'onglet Stock
+  // La période ne joue pas sur Stock ni sur Prix
   const sel = document.getElementById('stats-period');
-  if (sel) sel.disabled = _statsTab === 'stock';
+  if (sel) sel.disabled = _statsTab === 'stock' || _statsTab === 'prix';
 
   const mo = _statsData.monthly;
   if (_statsTab === 'apercu' && c.month && !statsDrawChart(mo)) {
@@ -368,4 +486,9 @@ function statsShow() {
       [{ t: 'Mois' }, { t: 'Consommé', right: 1 }],
       mo.months.map(function(k, i) { return '<tr><td>' + statsMonthLabel(k) + '</td><td' + STATS_R + '>' + statsG(mo.total[i]) + '</td></tr>'; }));
   } else if (_statsChart && _statsTab !== 'apercu') { _statsChart.destroy(); _statsChart = null; }
+
+  if (_statsTab === 'prix' && document.getElementById('stats-price-chart') && !statsDrawPriceChart(_statsData.prices.monthly)) {
+    document.getElementById('stats-price-chart').parentNode.style.display = 'none';
+    document.getElementById('stats-price-fallback').innerHTML = '<div class="metric-sub">Graphique indisponible hors ligne : voir le tableau ci-dessous.</div>';
+  } else if (_statsPriceChart && _statsTab !== 'prix') { _statsPriceChart.destroy(); _statsPriceChart = null; }
 }
