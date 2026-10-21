@@ -1,5 +1,9 @@
 # Changelog — FilaFlow
 
+## 1.14.2 — octobre 2026 — Stats : liste des bobines presque vides
+
+- Correctif : dans Stats › Aperçu, le bouton « Détail » de « bobines presque vides » ouvrait l'onglet Stock, qui ne montrait pas ces bobines. L'onglet Stock affiche maintenant en haut de la colonne de gauche une carte « Bobines presque vides » (bobine, restant, %), triée de la plus vide à la moins vide, selon le seuil des réglages
+
 ## 1.14.1 — octobre 2026 — le prix d'une fiche est un prix au kilo
 
 - Correctif : le prix saisi sur une fiche est un **prix au kilo** (€/kg), comme l'indique le champ ; la valeur du stock, le coût estimé de la consommation, les bobines dormantes et l'historique des prix le divisaient à tort par le poids total de la bobine. Sans effet pour une bobine de 1 kg ; pour une bobine de 500 g à 30 €/kg, la valeur était surestimée d'un facteur 2 (15 € au lieu de 7,50 € pour 250 g restants)

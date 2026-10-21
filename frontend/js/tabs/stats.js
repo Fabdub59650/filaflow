@@ -437,9 +437,26 @@ async function renderStats(months) {
 
   const priceCards = (window._showPrices !== false && d.prices) ? statsPriceCards(d.prices) : '';
 
+  // ── Bobines presque vides (cible du « Détail » de l'Aperçu) ─
+  let lowCard = '';
+  if (d.low_stock && d.low_stock.threshold) {
+    const li = d.low_stock.items;
+    lowCard = '<div class="card"><div class="card-header"><span class="card-title">Bobines presque vides</span>' +
+      '<span class="metric-sub">sous ' + d.low_stock.threshold + ' %</span></div>' +
+      (li.length ? statsTable(
+        [{ t: 'Bobine' }, { t: 'Restant', right: 1 }, { t: '%', right: 1 }],
+        li.map(function(x) {
+          return '<tr><td>' + statsDot(x.color_hex) + escHtml(x.material + ' ' + x.color_name) +
+            (x.spool_number ? ' <span style="color:var(--text3)">(' + escHtml(x.spool_number) + ')</span>' : '') + '</td>' +
+            '<td' + STATS_R + '>' + statsG(x.weight_remaining) + '</td>' +
+            '<td' + STATS_R + '>' + x.pct + ' %</td></tr>';
+        })) : '<div style="color:var(--success);font-size:13px">Aucune bobine sous le seuil.</div>') +
+    '</div>';
+  }
+
   _statsCards = {
     metrics: metrics, watch: watchCard, month: monthCard, auto: autoCard,
-    mat: matCard, color: colorCard, cons: consCard, fresh: freshCard, dorm: dormCard, price: priceCards,
+    mat: matCard, low: lowCard, color: colorCard, cons: consCard, fresh: freshCard, dorm: dormCard, price: priceCards,
   };
   _statsData = d;
   statsShow();
@@ -466,7 +483,7 @@ function statsShow() {
     }).join('') + '</div>';
 
   let body;
-  if (_statsTab === 'stock')      body = '<div class="stats-cols"><div class="stats-col">' + c.mat + '</div><div class="stats-col">' + c.color + '</div></div>';
+  if (_statsTab === 'stock')      body = '<div class="stats-cols"><div class="stats-col">' + c.low + c.mat + '</div><div class="stats-col">' + c.color + '</div></div>';
   else if (_statsTab === 'conso') body = c.cons + c.auto;
   else if (_statsTab === 'prix')  body = c.price;
   else if (_statsTab === 'suivi') body = '<div class="stats-cols"><div class="stats-col">' + c.fresh + '</div><div class="stats-col">' + c.dorm + '</div></div>';
