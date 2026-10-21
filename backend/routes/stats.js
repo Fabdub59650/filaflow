@@ -3,7 +3,7 @@
  *
  * Tout est calculé à partir des bobines actives et de l'historique des pesées.
  *
- *  - Stock : poids restant et valeur (prix de la bobine × part restante), par matière et par couleur.
+ *  - Stock : poids restant et valeur (prix au kilo × kilos restants), par matière et par couleur.
  *  - Fraîcheur : répartition des bobines selon l'âge de leur dernière pesée / validation d'inventaire.
  *  - Consommation estimée : somme des baisses de poids entre deux pesées (previous_weight → net_weight).
  *      · la première pesée de chaque bobine est ignorée : son « poids précédent » est le poids théorique
@@ -21,10 +21,10 @@
  *    consommée mais sans bobine active est en rupture. Sous le seuil d'alerte (jours), la couleur est « à racheter » ;
  *    les couleurs consommées de moins de 30 g/mois ne sont pas jugées (trop peu de signal).
  *  - Prix : historique d'achat déduit des bobines (archivées comprises), sans table supplémentaire. Le prix saisi sur
- *    une fiche est celui de la bobine (prix ÷ poids total = prix au gramme, comme pour la valeur du stock et PrepFlow) ;
- *    il est ramené en €/kg pour comparer des bobines de poids différents. Les bobines partielles (restes d'une bobine
- *    principale) sont exclues : elles dupliqueraient l'achat. Date d'achat = purchase_date, à défaut date de création.
- *    Moyenne « pondérée » = dépense totale ÷ kilos achetés. Tendance ↑/↓ : dernier prix à plus de 5 % de la moyenne.
+ *    une fiche est un prix au kilo (€/kg), quel que soit le poids de la bobine : une bobine de 500 g à 30 €/kg a coûté 15 €.
+ *    Les bobines partielles (restes d'une bobine principale) sont exclues : elles dupliqueraient l'achat. Date d'achat =
+ *    purchase_date, à défaut date de création. Moyenne « pondérée » = dépense totale ÷ kilos achetés. Tendance ↑/↓ :
+ *    dernier prix à plus de 5 % de la moyenne.
  */
 const router = require('express').Router();
 const db = require('../db');
@@ -43,10 +43,10 @@ const RATE_MIN_WINDOW_DAYS = 30;
 const MIN_RATE_G_MONTH = 30;        // en dessous, l'autonomie n'est pas jugée
 const ym = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 
-// Valeur d'une quantité de filament d'une bobine (prix de la bobine au prorata de son poids total)
-function valueOf(grams, price, total) {
-  if (!price || price <= 0 || !total || total <= 0 || !grams) return 0;
-  return grams * price / total;
+// Valeur d'une quantité de filament : le prix saisi sur la fiche est un prix au kilo (€/kg)
+function valueOf(grams, price) {
+  if (!price || price <= 0 || !grams) return 0;
+  return grams * price / 1000;
 }
 
 const PRICE_TREND_PCT = 5;          // écart (%) du dernier prix à la moyenne pour afficher une tendance
@@ -64,13 +64,13 @@ function computePrices(filaments, opts) {
     const at = toDate(f.purchase_date) || toDate(f.created_at);
     purchases.push({
       material: f.material || 'autre', color_name: f.color_name || '—', color_hex: f.color_hex,
-      supplier: (f.supplier || '').trim() || null, price, kg: total / 1000, eur_kg: price / (total / 1000),
+      supplier: (f.supplier || '').trim() || null, kg: total / 1000, eur_kg: price, cost: price * total / 1000,
       at, date: at ? at.toISOString().slice(0, 10) : null, spool_number: f.spool_number || null,
     });
   }
 
   const agg = list => {
-    const spend = list.reduce((a, p) => a + p.price, 0), kg = list.reduce((a, p) => a + p.kg, 0);
+    const spend = list.reduce((a, p) => a + p.cost, 0), kg = list.reduce((a, p) => a + p.kg, 0);
     const dated = list.filter(p => p.at).sort((a, b) => b.at - a.at);
     const last = dated[0] || list[0];
     const weighted = kg ? spend / kg : null;
@@ -82,7 +82,7 @@ function computePrices(filaments, opts) {
     return {
       count: list.length, spend: round1(spend), kg: round1(kg),
       weighted: round2(weighted), min: round2(Math.min(...list.map(p => p.eur_kg))), max: round2(Math.max(...list.map(p => p.eur_kg))),
-      last: { eur_kg: round2(last.eur_kg), price: round2(last.price), date: last.date, supplier: last.supplier },
+      last: { eur_kg: round2(last.eur_kg), cost: round2(last.cost), date: last.date, supplier: last.supplier },
       trend,
     };
   };
@@ -122,7 +122,7 @@ function computePrices(filaments, opts) {
         eur_kg: list.map(k => {
           const l = purchases.filter(p => p.material === material && p.at && ym(p.at) === k);
           const kg = l.reduce((a, p) => a + p.kg, 0);
-          return kg ? round2(l.reduce((a, p) => a + p.price, 0) / kg) : null;
+          return kg ? round2(l.reduce((a, p) => a + p.cost, 0) / kg) : null;
         }),
         purchases: list.map(k => purchases.filter(p => p.material === material && p.at && ym(p.at) === k).length),
       })).filter(m => m.eur_kg.filter(v => v !== null).length >= 1),
@@ -219,7 +219,7 @@ function computeStats(filaments, weighings, opts) {
     if (!inPeriod) continue;
 
     const price = num(f.price), total = num(f.weight_total);
-    const cost = valueOf(delta, price, total);
+    const cost = valueOf(delta, price);
     consGrams += delta;
     if (cost > 0) consCost += cost; else gramsNoPrice += delta;
     usedCount++;
@@ -243,7 +243,7 @@ function computeStats(filaments, weighings, opts) {
     const remaining = Math.max(0, num(f.weight_remaining) || 0);
     const total = num(f.weight_total);
     const price = num(f.price);
-    const value = valueOf(remaining, price, total);
+    const value = valueOf(remaining, price);
     const mat = f.material || 'autre';
     const colorName = f.color_name || '—';
 
@@ -347,7 +347,7 @@ function computeStats(filaments, weighings, opts) {
       id: f.id, name: f.name, material: f.material, color_name: f.color_name, color_hex: f.color_hex,
       spool_number: f.spool_number, location: f.location,
       weight_remaining: round1(remaining),
-      value: round1(valueOf(remaining, num(f.price), num(f.weight_total))),
+      value: round1(valueOf(remaining, num(f.price))),
       last_use_at: lu ? lu.toISOString().slice(0, 10) : null,
     });
   }

@@ -198,7 +198,7 @@ function statsPriceCards(pr) {
     '<span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="statsToggleAll(true)">Tout déplier</button>' +
     '<button class="btn btn-sm" onclick="statsToggleAll(false)">Tout replier</button></span></div>' +
     '<div class="stats-scroll">' + groups + '</div>' +
-    '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Prix ramenés au kilo (prix de la bobine ÷ son poids), restes de bobines exclus. ' +
+    '<div class="metric-sub" style="margin-top:10px;line-height:1.5">Prix au kilo saisis sur les fiches, restes de bobines exclus. ' +
       'Moyenne pondérée par les kilos achetés ; ↑ ou ↓ : dernier prix à plus de ' + pr.trend_pct + ' % de la moyenne. ' +
       (pr.without_price ? pr.without_price + ' bobine' + (pr.without_price > 1 ? 's' : '') + ' active' + (pr.without_price > 1 ? 's' : '') + ' sans prix, non comptée' + (pr.without_price > 1 ? 's' : '') + '.' : '') +
     '</div></div>';

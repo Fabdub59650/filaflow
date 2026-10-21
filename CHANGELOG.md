@@ -1,5 +1,12 @@
 # Changelog — FilaFlow
 
+## 1.14.1 — octobre 2026 — le prix d'une fiche est un prix au kilo
+
+- Correctif : le prix saisi sur une fiche est un **prix au kilo** (€/kg), comme l'indique le champ ; la valeur du stock, le coût estimé de la consommation, les bobines dormantes et l'historique des prix le divisaient à tort par le poids total de la bobine. Sans effet pour une bobine de 1 kg ; pour une bobine de 500 g à 30 €/kg, la valeur était surestimée d'un facteur 2 (15 € au lieu de 7,50 € pour 250 g restants)
+- Le champ Prix reprend son libellé « Prix (€/kg) » ; le préremplissage à la création d'une bobine reprend le dernier prix au kilo tel quel (il ne dépend plus du poids total)
+- Historique des prix : la dépense d'un achat est prix au kilo × kilos de la bobine
+- PrepFlow lisait le même prix de la même façon : corrigé dans sa v1.19.2
+
 ## 1.14.0 — octobre 2026 — historique des prix
 
 - Nouveau sous-onglet **Prix** dans Stats (masqué si « Gestion des prix » est désactivée) : courbe du prix au kilo par mois et par matière, tableau par matière et par couleur (dernier prix, prix moyen pondéré, min – max, nombre d'achats, date du dernier achat, flèche ↑ ou ↓ quand le dernier prix s'écarte de plus de 5 % de la moyenne) et comparaison des fournisseurs pour les matières achetées chez plusieurs d'entre eux

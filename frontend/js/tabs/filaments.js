@@ -858,7 +858,7 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
     <!-- Section 3 : Stock & prix -->
     <div style="font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Stock</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr ${window._showPrices ? '1fr' : ''};gap:10px;margin-bottom:14px">
-      <div><label class="form-label">Poids total (g)</label><input id="ff-wtot" type="number" value="${f.weight_total||1000}" oninput="validateWeights();rescaleSuggestedPrice()"></div>
+      <div><label class="form-label">Poids total (g)</label><input id="ff-wtot" type="number" value="${f.weight_total||1000}" oninput="validateWeights()"></div>
       <div><label class="form-label">Poids restant (g)</label><input id="ff-wrem" type="number" value="${f.weight_remaining||1000}" oninput="validateWeights()"></div>
       <div>
         <label class="form-label">Poids bobine vide (g)</label>
@@ -868,7 +868,7 @@ function openFilamentForm(id = null, defaultParentId = null, sourceData = null) 
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px">Ou choisissez depuis la base de référence</div>
       </div>
-      ${window._showPrices ? `<div><label class="form-label">Prix de la bobine (€)</label><input id="ff-price" type="number" step="0.01" value="${f.price||''}" oninput="priceEdited()">
+      ${window._showPrices ? `<div><label class="form-label">Prix (€/kg)</label><input id="ff-price" type="number" step="0.01" value="${f.price||''}" oninput="priceEdited()">
         <div id="ff-price-hint" class="field-hint"></div></div>` : ''}
     </div>
 
@@ -1031,7 +1031,7 @@ async function saveFilament(id) {
 }
 
 // ── Préremplissage du prix : dernier prix payé pour la même matière et couleur ──
-let _priceSuggestion = null;   // { eur_kg, date, price, weight_total } tant que le champ n'a pas été modifié à la main
+let _priceSuggestion = null;   // dernier prix connu { eur_kg, date, … }
 function priceEdited() {
   const el = document.getElementById('ff-price');
   if (el) delete el.dataset.auto;
@@ -1045,8 +1045,7 @@ function showPriceHint(sug) {
   const hint = document.getElementById('ff-price-hint');
   if (!hint) return;
   hint.textContent = sug
-    ? 'Dernier prix payé : ' + sug.price.toFixed(2).replace('.', ',') + ' € pour ' + Math.round(sug.weight_total) + ' g (' +
-      sug.eur_kg.toFixed(2).replace('.', ',') + ' €/kg' + (sug.date ? ', ' + fmtPriceMonth(sug.date) : '') + ')'
+    ? 'Dernier prix payé : ' + sug.eur_kg.toFixed(2).replace('.', ',') + ' €/kg' + (sug.date ? ' (' + fmtPriceMonth(sug.date) + ')' : '')
     : '';
 }
 async function suggestPrice() {
@@ -1062,20 +1061,11 @@ async function suggestPrice() {
     showPriceHint(sug);
     // Remplit seulement un champ vide (ou déjà rempli automatiquement), jamais une valeur saisie
     if (sug && (priceEl.value === '' || priceEl.dataset.auto === '1') && window._ffIsNew) {
-      const wtot = parseFloat(document.getElementById('ff-wtot')?.value) || 1000;
-      priceEl.value = (sug.eur_kg * wtot / 1000).toFixed(2);
+      priceEl.value = sug.eur_kg.toFixed(2);
       priceEl.dataset.auto = '1';
     }
   } catch (_) {}
 }
-// Si le poids total change alors que le prix vient du préremplissage, il suit (même prix au kilo)
-function rescaleSuggestedPrice() {
-  const priceEl = document.getElementById('ff-price');
-  if (!priceEl || priceEl.dataset.auto !== '1' || !_priceSuggestion) return;
-  const wtot = parseFloat(document.getElementById('ff-wtot')?.value);
-  if (wtot > 0) priceEl.value = (_priceSuggestion.eur_kg * wtot / 1000).toFixed(2);
-}
-
 function onParentChange(select) {
   // Pre-remplir matière/couleur depuis le parent si on vient de le sélectionner
   const parentId = parseInt(select.value);

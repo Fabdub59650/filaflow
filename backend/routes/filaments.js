@@ -26,8 +26,8 @@ router.get('/last-price', async (req, res) => {
          AND LOWER(TRIM(material)) = LOWER(?) AND LOWER(TRIM(color_name)) = LOWER(?)
        ORDER BY COALESCE(purchase_date, DATE(created_at)) DESC, id DESC LIMIT 1`, [material, color]);
     if (!r) return res.json(null);
-    const price = parseFloat(r.price), total = parseFloat(r.weight_total);
-    res.json({ price, weight_total: total, eur_kg: Math.round(price / (total / 1000) * 100) / 100,
+    const eurKg = Math.round(parseFloat(r.price) * 100) / 100;   // le prix d'une fiche est un prix au kilo
+    res.json({ eur_kg: eurKg, weight_total: parseFloat(r.weight_total),
                supplier: r.supplier || null, date: r.bought_at ? String(r.bought_at).slice(0, 10) : null });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
