@@ -1,5 +1,14 @@
 # Changelog — FilaFlow
 
+## 1.15.0 — octobre 2026 — Annuler une pesée
+
+- Nouveau bouton **Annuler** sur chaque ligne de « Historique des pesées » d'une bobine : pour corriger une erreur de bobine ou de puce NFC (pesée de la balance connectée comprise)
+- Si c'est la **dernière pesée** de la bobine et que son poids restant n'a pas changé depuis (ni impression, ni correction à la main), le poids d'avant la pesée est rétabli
+- Sinon (pesée plus ancienne, ou poids modifié depuis), la ligne est supprimée et le poids restant actuel est laissé tel quel ; le « avant » de la pesée suivante est recalé pour garder l'historique cohérent
+- Confirmation avant l'annulation, et trace dans l'historique des modifications (« Pesée annulée »)
+- Pour une pesée faite sur la mauvaise bobine : annuler, puis peser la bonne bobine
+- API : `DELETE /api/weighings/:id` (renvoie `restored` : poids rétabli ou non) ; aucun changement de base de données
+
 ## 1.14.3 — octobre 2026 — Mises à jour : même fonctionnement que PrepFlow
 
 - Paramètres › Version › Vérifier : la dernière version est maintenant le **tag** le plus récent (vX.Y.Z) du dépôt GitHub, et non plus la dernière « Release » : pousser un tag suffit, aucune release à créer

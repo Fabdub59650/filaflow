@@ -1399,6 +1399,22 @@ function reopenWeighingForm() {
   }, 80);
 }
 
+// Annulation d'une pesée (erreur de bobine, mauvaise puce NFC…)
+async function cancelWeighing(weighingId, filamentId, isLast) {
+  const msg = isLast
+    ? 'Annuler cette pesée ? Le poids restant de la bobine revient à sa valeur d\'avant la pesée.'
+    : 'Annuler cette ancienne pesée ? Elle est supprimée de l\'historique ; le poids restant actuel de la bobine ne change pas.';
+  if (!confirm(msg)) return;
+  try {
+    const r = await API.del('/weighings/' + weighingId);
+    toast(r.restored ? 'Pesée annulée, poids restant rétabli : ' + Math.round(r.filament.weight_remaining) + 'g'
+      : (r.is_last ? 'Pesée annulée ; le poids restant avait changé depuis, il est laissé tel quel' : 'Pesée annulée'), 'success');
+    closeModal();
+    await renderFilaments();
+    openWeighingHistory(filamentId);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 async function openWeighingHistory(filamentId) {
   const fil = allFilaments.find(f => f.id == filamentId);
   const filamentName = fil ? fil.name : 'Filament #' + filamentId;
@@ -1438,10 +1454,10 @@ async function openWeighingHistory(filamentId) {
       // Tableau
       '<table>' +
         '<thead><tr>' +
-          '<th>Date</th><th>Brut</th><th>Bobine</th><th>Net</th><th>Avant</th><th>Écart</th><th>Notes</th>' +
+          '<th>Date</th><th>Brut</th><th>Bobine</th><th>Net</th><th>Avant</th><th>Écart</th><th>Notes</th><th></th>' +
         '</tr></thead>' +
         '<tbody>' +
-        history.map(function(w) {
+        history.map(function(w, i) {
           const diff = parseFloat(w.net_weight) - parseFloat(w.previous_weight);
           const diffColor = diff > 5 ? '#10b981' : diff < -5 ? '#ef4444' : '#888';
           return '<tr>' +
@@ -1452,6 +1468,7 @@ async function openWeighingHistory(filamentId) {
             '<td style="color:var(--text3)">' + parseFloat(w.previous_weight).toFixed(0) + 'g</td>' +
             '<td style="color:' + diffColor + ';font-weight:500">' + (diff>=0?'+':'') + diff.toFixed(0) + 'g</td>' +
             '<td style="font-size:12px;color:var(--text3)">' + (w.notes||'—') + '</td>' +
+            '<td style="text-align:right;padding-left:4px"><button class="btn btn-sm" style="padding:2px 8px;font-size:11px;min-height:0;white-space:nowrap" title="Annuler cette pesée" onclick="cancelWeighing(' + w.id + ',' + filamentId + ',' + (i === 0 ? 'true' : 'false') + ')">Annuler</button></td>' +
           '</tr>';
         }).join('') +
         '</tbody>' +
