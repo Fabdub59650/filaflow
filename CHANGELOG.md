@@ -1,5 +1,14 @@
 # Changelog — FilaFlow
 
+## 1.14.3 — octobre 2026 — Mises à jour : même fonctionnement que PrepFlow
+
+- Paramètres › Version › Vérifier : la dernière version est maintenant le **tag** le plus récent (vX.Y.Z) du dépôt GitHub, et non plus la dernière « Release » : pousser un tag suffit, aucune release à créer
+- Les notes affichées viennent du **CHANGELOG.md** de ce tag (toutes les versions entre la vôtre et la dernière)
+- Le navigateur n'envoie plus qu'un numéro de version : l'adresse téléchargée est construite côté serveur à partir de la version vérifiée
+- La mise à jour fait comme `patch.sh` : fichiers, modules Node.js et **schéma SQL** (idempotent), puis redémarrage ; la progression et les erreurs s'affichent
+- Si FilaFlow tourne depuis un dépôt Git, la mise à jour automatique est refusée (utiliser `git pull` et `patch.sh`)
+- Un changement du service systemd ou du bloc Nginx dans la nouvelle version est signalé par l'API (`infra_changes`)
+
 ## 1.14.2 — octobre 2026 — Stats : liste des bobines presque vides
 
 - Correctif : dans Stats › Aperçu, le bouton « Détail » de « bobines presque vides » ouvrait l'onglet Stock, qui ne montrait pas ces bobines. L'onglet Stock affiche maintenant en haut de la colonne de gauche une carte « Bobines presque vides » (bobine, restant, %), triée de la plus vide à la moins vide, selon le seuil des réglages

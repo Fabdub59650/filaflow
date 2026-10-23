@@ -1378,15 +1378,13 @@ async function checkForUpdate() {
 
     if (info.is_newer) {
       // Mise à jour disponible
-      const pubDate = info.published_at
-        ? new Date(info.published_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'long',year:'numeric'})
-        : '';
+      const pubDate = '';
 
       // Formater les notes de release (markdown basique)
       const notes = (info.release_notes || '')
         .split('\n')
-        .slice(0, 8)
-        .map(function(l){ return l.replace(/^#+\s*/, '').replace(/\*\*/g,''); })
+        .slice(0, 14)
+        .map(function(l){ return escHtml(l.replace(/^#+\s*/, '').replace(/\*\*/g,'')); })
         .filter(function(l){ return l.trim(); })
         .join('<br>');
 
@@ -1400,7 +1398,7 @@ async function checkForUpdate() {
                 (pubDate ? ' · ' + pubDate : '') +
               '</div>' +
             '</div>' +
-            '<button class="btn btn-primary" onclick="installUpdate(\'' + info.latest_version + '\',\'' + info.download_url + '\')">' +
+            '<button class="btn btn-primary" onclick="installUpdate(\'' + info.latest_version + '\')">' +
               '↓ Mettre à jour' +
             '</button>' +
           '</div>' +
@@ -1425,13 +1423,13 @@ async function checkForUpdate() {
   }
 }
 
-async function installUpdate(version, downloadUrl) {
+async function installUpdate(version) {
   const confirmed = await new Promise(function(resolve) {
     openModal(
       '<div style="padding:8px 0">' +
         '<p style="font-size:14px;margin-bottom:12px">Vous allez installer la version <strong>' + version + '</strong>.</p>' +
         '<p style="font-size:13px;color:var(--text2);margin-bottom:8px">FilaFlow va redémarrer automatiquement. La mise à jour prend environ 30 secondes.</p>' +
-        '<p style="font-size:12px;color:var(--text3)">⚠ La base de données ne sera pas modifiée automatiquement — consultez le CHANGELOG pour les éventuelles migrations SQL.</p>' +
+        '<p style="font-size:12px;color:var(--text3)">Les fichiers, les modules Node.js et le schéma de la base (idempotent) sont mis à jour, comme avec patch.sh.</p>' +
       '</div>' +
       '<div class="modal-footer">' +
         '<button class="btn" onclick="closeModal()">Annuler</button>' +
@@ -1463,14 +1461,26 @@ async function installUpdate(version, downloadUrl) {
     '</div>';
 
   try {
-    await API.post('/updater/update', { download_url: downloadUrl, latest_version: version });
-    if (el) el.innerHTML =
-      '<div style="color:#10b981;font-size:13px;padding:4px 0">' +
-        '<div style="font-weight:500;margin-bottom:4px">✓ Mise à jour lancée !</div>' +
-        '<div style="font-size:12px;color:var(--text3)">Rechargement de la page dans 15 secondes…</div>' +
-      '</div>';
-    // Recharger après redémarrage du service
-    setTimeout(function() { window.location.reload(); }, 15000);
+    await API.post('/updater/update', { version: version });
+    // Suivi : une erreur est affichée ; une coupure du serveur = redémarrage en cours
+    let tries = 0;
+    const poll = setInterval(async function() {
+      tries++;
+      try {
+        const p = await API.get('/updater/progress');
+        if (p.state === 'error') {
+          clearInterval(poll);
+          if (el) el.innerHTML = '<div style="color:var(--danger);font-size:13px">⚠ Échec de la mise à jour : ' + escHtml(p.error || '') + '</div>';
+        } else if (el && p.step) {
+          el.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:4px 0"><div style="font-weight:500;margin-bottom:4px">⏳ Mise à jour en cours…</div><div style="font-size:12px;color:var(--text3)">' + escHtml(p.step) + '</div></div>';
+        }
+      } catch(_) {
+        clearInterval(poll);
+        if (el) el.innerHTML = '<div style="color:#10b981;font-size:13px;padding:4px 0"><div style="font-weight:500">✓ Redémarrage de FilaFlow…</div><div style="font-size:12px;color:var(--text3)">Rechargement de la page dans 10 secondes…</div></div>';
+        setTimeout(function() { window.location.reload(); }, 10000);
+      }
+      if (tries > 120) clearInterval(poll);
+    }, 2000);
   } catch(e) {
     if (el) el.innerHTML = '<div style="color:var(--danger);font-size:13px">Erreur : ' + e.message + '</div>';
   }
