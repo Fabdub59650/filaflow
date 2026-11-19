@@ -1,5 +1,13 @@
 # Changelog — FilaFlow
 
+## 1.17.0 — novembre 2026 — Menu dans l'en-tête
+
+- Le **menu passe de la colonne de gauche à l'en-tête**, comme dans PrepFlow et ModelFlow : logo, onglets (Filaments, Stats, Bobines réf., Paramètres, Historique), puis à droite thème, barre d'applis et version
+- Les pastilles **Lecteur NFC** et **Balance** sont dans une **barre d'état fixe en bas** de l'écran (clic sur NFC : scanner une bobine)
+- Le bouton « Installer l'application » devient une petite icône de l'en-tête (visible seulement quand l'installation est possible)
+- Mobile : plus de bouton ☰, le menu défile horizontalement ; la barre d'état se réduit à deux points colorés
+- Aucun changement de base de données
+
 ## 1.16.0 — novembre 2026 — Barre d'applis et sauvegarde de ModelFlow
 
 - Nouvelle **barre d'applis** dans l'en-tête : FilaFlow · PrepFlow · ModelFlow, l'appli courante est mise en avant. Elle remplace le bouton « Ouvrir PrepFlow » et affiche toujours les trois liens

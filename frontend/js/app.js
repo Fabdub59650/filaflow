@@ -18,6 +18,7 @@ function switchTab(tab) {
   if (renderer) renderer();
 }
 
+document.querySelector('#app-header .brand')?.addEventListener('click', e => { e.preventDefault(); switchTab('filaments'); });
 document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
   el.addEventListener('click', e => {
     e.preventDefault();
@@ -159,40 +160,6 @@ async function refreshScaleStatus() {
 }
 setTimeout(refreshScaleStatus, 1500);
 setInterval(refreshScaleStatus, 60000);
-
-// ── Sidebar mobile/tablette ───────────────────────────────────────────────
-function toggleSidebar() {
-  const sidebar  = document.getElementById('sidebar');
-  const overlay  = document.getElementById('sidebar-overlay');
-  const isOpen   = sidebar.classList.contains('sidebar-open');
-  if (isOpen) closeSidebar();
-  else openSidebar();
-}
-
-function openSidebar() {
-  document.getElementById('sidebar').classList.add('sidebar-open');
-  document.getElementById('sidebar-overlay').classList.add('visible');
-}
-
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('sidebar-open');
-  document.getElementById('sidebar-overlay').classList.remove('visible');
-}
-
-// Fermer la sidebar sur navigation (mobile)
-const _origSwitchTab = switchTab;
-window.switchTab = function(tab) {
-  if (window.innerWidth <= 768) closeSidebar();
-  _origSwitchTab(tab);
-};
-
-// Afficher/masquer le bouton hamburger selon la taille
-function updateHamburger() {
-  const btn = document.getElementById('hamburger-btn');
-  if (btn) btn.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
-}
-window.addEventListener('resize', updateHamburger);
-updateHamburger();
 
 // ── Raccourcis clavier ─────────────────────────────────────────────────────
 const KB_SHORTCUTS = [

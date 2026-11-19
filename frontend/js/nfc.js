@@ -104,6 +104,7 @@ function _updateNfcIndicator() {
 
 // Injecter l'indicateur NFC dans le header au démarrage
 function nfcInjectIndicator() {
+  return;   // v1.17.0 : l'état du lecteur est affiché dans la barre d'état du bas
   const nav = document.querySelector('.topbar') || document.querySelector('header');
   if (!nav || document.getElementById('nfc-indicator-wrap')) return;
 
