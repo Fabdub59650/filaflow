@@ -517,3 +517,10 @@ body:not([data-tab="filaments"]) .mobile-actions { display: none !important; }
   body[data-tab="filaments"] #toast-container { bottom: calc(var(--statusbar-h) + 92px); }
   .mobile-actions { bottom: var(--statusbar-h); }
 }
+
+/* Largeur du contenu limitée à 1600 px et centrée, comme PrepFlow et ModelFlow
+   (le défilement reste sur le bord de l'écran ; en-tête et barre d'état restent pleine largeur) */
+@media (min-width: 769px) {
+  #topbar  { padding-inline: max(32px, calc((100% - 1600px) / 2 + 32px)); }
+  #content { padding-inline: max(32px, calc((100% - 1600px) / 2 + 32px)); }
+}

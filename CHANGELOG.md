@@ -1,5 +1,9 @@
 # Changelog — FilaFlow
 
+## 1.17.1 — novembre 2026 — Largeur du contenu
+
+- Le contenu est **limité à 1600 px et centré** sur les grands écrans, comme dans PrepFlow et ModelFlow (l'en-tête et la barre d'état restent pleine largeur). Aucun changement en dessous de 1600 px ni sur mobile.
+
 ## 1.17.0 — novembre 2026 — Menu dans l'en-tête
 
 - Le **menu passe de la colonne de gauche à l'en-tête**, comme dans PrepFlow et ModelFlow : logo, onglets (Filaments, Stats, Bobines réf., Paramètres, Historique), puis à droite thème, barre d'applis et version
