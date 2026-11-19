@@ -1,11 +1,12 @@
 // ── FilaFlow Service Worker ──────────────────────────────
-const CACHE_NAME    = 'filaflow-v1.15.0';   // cache hors-ligne uniquement
+const CACHE_NAME    = 'filaflow-v1.16.0';   // cache hors-ligne uniquement
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/css/theme.css',
   '/css/app.css',
   '/js/api.js',
+  '/js/apps-nav.js',
   '/js/app.js',
   '/js/nfc.js',
   '/js/components.js',
@@ -99,9 +100,9 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
 
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
-  // Applications voisines servies sur le même hôte (PrepFlow, Adminer) : jamais interceptées
+  // Applications voisines servies sur le même hôte (PrepFlow, ModelFlow, Adminer) : jamais interceptées
   if (url.origin === self.location.origin &&
-      (url.pathname.startsWith('/prepflow') || url.pathname.startsWith('/adminer'))) return;
+      (url.pathname.startsWith('/prepflow') || url.pathname.startsWith('/modelflow') || url.pathname.startsWith('/adminer'))) return;
 
   if (url.pathname.startsWith('/fonts/') || url.hostname === 'cdnjs.cloudflare.com') {
     event.respondWith(cacheFirst(request));

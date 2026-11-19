@@ -139,6 +139,8 @@ const SYSTEM_PATHS = [
   'etc/systemd/system/filaflow.service',
   'opt/prepflow/backend/.env',
   'etc/systemd/system/prepflow.service',
+  'opt/modelflow/backend/.env',
+  'etc/systemd/system/modelflow.service',
   'etc/log2ram.conf',
   'etc/hostname',
   'etc/hosts',
@@ -158,7 +160,7 @@ const SYSTEM_README = [
   '',
   'Contenu : fichiers de configuration du Pi (chemins relatifs à la racine /),',
   'system-info.txt (inventaire : paquets, services, conteneurs, versions).',
-  'Les bases de données sont à côté : database.sql.gz (FilaFlow), prepflow.sql.gz (PrepFlow).',
+  'Les bases de données sont à côté : database.sql.gz (FilaFlow), prepflow.sql.gz (PrepFlow), modelflow.sql.gz (ModelFlow).',
   '',
   'ATTENTION : cette archive contient des secrets (clé privée du certificat,',
   'mots de passe de la base et du Wi-Fi, clé de chiffrement). À garder sur le NAS.',
@@ -179,6 +181,8 @@ const SYSTEM_README = [
   '  5. Restaurer la base : gunzip -c database.sql.gz | sudo mariadb filaflow',
   '     PrepFlow (si présent) : .env de opt/prepflow/backend/ en place, install.sh de PrepFlow,',
   '     puis : gunzip -c prepflow.sql.gz | sudo mariadb prepflow',
+  '     ModelFlow (si présent) : même principe avec opt/modelflow/backend/.env,',
+  '     puis : gunzip -c modelflow.sql.gz | sudo mariadb modelflow',
   '  6. sudo systemctl restart filaflow nginx',
   "  Paquets et services d'origine : voir system-info.txt",
   '',
@@ -224,12 +228,13 @@ async function backupSystem(destDir) {
   }
 }
 
-// ── Bases des applications voisines (PrepFlow…) ───────────
+// ── Bases des applications voisines (PrepFlow, ModelFlow…) ───────────
 // Chaque base est sauvegardée avec les identifiants du .env de son application.
 // Si l'application n'est pas installée (.env absent), elle est simplement ignorée.
 // Un échec n'annule pas la sauvegarde de FilaFlow : il est signalé dans le rapport.
 const EXTRA_DATABASES = [
   { key: 'prepflow', label: 'PrepFlow', file: 'prepflow.sql.gz', env: '/opt/prepflow/backend/.env' },
+  { key: 'modelflow', label: 'ModelFlow', file: 'modelflow.sql.gz', env: '/opt/modelflow/backend/.env' },
 ];
 
 function readEnvFile(file) {

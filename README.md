@@ -35,7 +35,7 @@ configuration existante (Adminer, Cockpit…).
 
 ## Sauvegarde et reconstruction
 
-Chaque sauvegarde contient la base (`database.sql.gz`), la configuration du Pi (`system.tar.gz`) et, si PrepFlow est installé, sa base (`prepflow.sql.gz`).
+Chaque sauvegarde contient la base (`database.sql.gz`), la configuration du Pi (`system.tar.gz`) et, si PrepFlow et ModelFlow sont installés, leurs bases (`prepflow.sql.gz`, `modelflow.sql.gz`).
 Procédure pour reconstruire le Pi sur une carte SD neuve : [docs/RECONSTRUCTION.md](docs/RECONSTRUCTION.md).
 
 ## Mise à jour

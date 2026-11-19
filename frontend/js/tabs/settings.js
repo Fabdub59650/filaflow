@@ -984,7 +984,7 @@ async function loadBackupStatus() {
         listEl.innerHTML = '<span style="color:var(--text3);font-size:13px">Aucune sauvegarde disponible.</span>';
       } else {
         listEl.innerHTML = '<table><thead><tr>' +
-          '<th>Date</th><th>Type</th><th>BDD</th><th>Système</th><th>PrepFlow</th>' +
+          '<th>Date</th><th>Type</th><th>BDD</th><th>Système</th><th>PrepFlow</th><th>ModelFlow</th>' +
           '</tr></thead><tbody>' +
           status.backups.map(function(b) {
             const fmt = function(n) {
@@ -1001,6 +1001,7 @@ async function loadBackupStatus() {
               '<td style="font-size:12px">' + fmt(b.dbSize) + '</td>' +
               '<td style="font-size:12px">' + fmt(b.systemSize) + '</td>' +
               '<td style="font-size:12px">' + fmt(b.prepflowSize) + '</td>' +
+              '<td style="font-size:12px">' + fmt(b.modelflowSize) + '</td>' +
             '</tr>';
           }).join('') +
           '</tbody></table>';

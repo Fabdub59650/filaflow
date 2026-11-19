@@ -1,5 +1,14 @@
 # Changelog — FilaFlow
 
+## 1.16.0 — novembre 2026 — Barre d'applis et sauvegarde de ModelFlow
+
+- Nouvelle **barre d'applis** dans l'en-tête : FilaFlow · PrepFlow · ModelFlow, l'appli courante est mise en avant. Elle remplace le bouton « Ouvrir PrepFlow » et affiche toujours les trois liens
+- La **sauvegarde NAS** inclut désormais la base de **ModelFlow** (`modelflow.sql.gz`) et sa configuration (`.env`, service systemd) dans `system.tar.gz`, si ModelFlow est installé (sinon ignoré sans erreur)
+- Historique des sauvegardes (Paramètres) : nouvelle colonne **ModelFlow**
+- Le service worker ne met plus en cache `/modelflow/`
+- `docs/RECONSTRUCTION.md` : nouvelle étape « 10 bis. ModelFlow »
+- Aucun changement de base de données
+
 ## 1.15.0 — octobre 2026 — Annuler une pesée
 
 - Nouveau bouton **Annuler** sur chaque ligne de « Historique des pesées » d'une bobine : pour corriger une erreur de bobine ou de puce NFC (pesée de la balance connectée comprise)
